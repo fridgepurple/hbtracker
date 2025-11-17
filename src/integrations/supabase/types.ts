@@ -52,8 +52,10 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          end_time: string | null
           id: string
           name: string
+          start_time: string | null
           user_id: string
         }
         Insert: {
@@ -61,8 +63,10 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          end_time?: string | null
           id?: string
           name: string
+          start_time?: string | null
           user_id: string
         }
         Update: {
@@ -70,8 +74,10 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          end_time?: string | null
           id?: string
           name?: string
+          start_time?: string | null
           user_id?: string
         }
         Relationships: []

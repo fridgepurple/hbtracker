@@ -14,7 +14,13 @@ import { toast } from 'sonner';
 export default function HabitsManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', category: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    description: '', 
+    category: '',
+    start_time: '',
+    end_time: ''
+  });
   const queryClient = useQueryClient();
 
   const { data: habits = [] } = useQuery({
@@ -27,7 +33,7 @@ export default function HabitsManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habits'] });
       setIsCreateOpen(false);
-      setFormData({ name: '', description: '', category: '' });
+      setFormData({ name: '', description: '', category: '', start_time: '', end_time: '' });
       toast.success('Habit created successfully!');
     },
     onError: () => {
@@ -40,7 +46,7 @@ export default function HabitsManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habits'] });
       setEditingHabit(null);
-      setFormData({ name: '', description: '', category: '' });
+      setFormData({ name: '', description: '', category: '', start_time: '', end_time: '' });
       toast.success('Habit updated successfully!');
     },
     onError: () => {
@@ -78,10 +84,24 @@ export default function HabitsManagement() {
       return;
     }
 
+    // Validate time range if both are provided
+    if (formData.start_time && formData.end_time) {
+      if (formData.end_time <= formData.start_time) {
+        toast.error('End time must be after start time');
+        return;
+      }
+    }
+
+    const dataToSubmit = {
+      ...formData,
+      start_time: formData.start_time || undefined,
+      end_time: formData.end_time || undefined
+    };
+
     if (editingHabit) {
-      updateMutation.mutate({ id: editingHabit.id, updates: formData });
+      updateMutation.mutate({ id: editingHabit.id, updates: dataToSubmit });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(dataToSubmit);
     }
   };
 
@@ -91,6 +111,8 @@ export default function HabitsManagement() {
       name: habit.name,
       description: habit.description || '',
       category: habit.category || '',
+      start_time: habit.start_time || '',
+      end_time: habit.end_time || '',
     });
   };
 
@@ -152,6 +174,28 @@ export default function HabitsManagement() {
                       placeholder="e.g., Health, Work, Personal"
                     />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_time">Start Time</Label>
+                      <Input
+                        id="start_time"
+                        type="time"
+                        value={formData.start_time}
+                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="end_time">End Time</Label>
+                      <Input
+                        id="end_time"
+                        type="time"
+                        value={formData.end_time}
+                        onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
                 
                 <DialogFooter>
@@ -188,11 +232,20 @@ export default function HabitsManagement() {
                       {habit.description && (
                         <CardDescription className="mt-1">{habit.description}</CardDescription>
                       )}
-                      {habit.category && (
-                        <span className="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                          {habit.category}
-                        </span>
-                      )}
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {habit.category && (
+                          <span className="inline-block px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                            {habit.category}
+                          </span>
+                        )}
+                        {(habit.start_time || habit.end_time) && (
+                          <span className="inline-block px-2 py-1 text-xs rounded-full bg-accent/10 text-accent-foreground">
+                            {habit.start_time && habit.start_time.slice(0, 5)}
+                            {habit.start_time && habit.end_time && ' - '}
+                            {habit.end_time && habit.end_time.slice(0, 5)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex gap-2">
@@ -239,6 +292,28 @@ export default function HabitsManagement() {
                                   value={formData.category}
                                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                 />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-start_time">Start Time</Label>
+                                  <Input
+                                    id="edit-start_time"
+                                    type="time"
+                                    value={formData.start_time}
+                                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-end_time">End Time</Label>
+                                  <Input
+                                    id="edit-end_time"
+                                    type="time"
+                                    value={formData.end_time}
+                                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                                  />
+                                </div>
                               </div>
                             </div>
                             

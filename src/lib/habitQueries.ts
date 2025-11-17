@@ -6,6 +6,8 @@ export interface Habit {
   name: string;
   description?: string;
   category?: string;
+  start_time?: string;
+  end_time?: string;
   created_at: string;
   archived_at?: string;
 }
@@ -67,7 +69,13 @@ export async function toggleHabitLog(habitId: string, date: string, completed: b
 }
 
 // Create a new habit
-export async function createHabit(habit: { name: string; description?: string; category?: string }) {
+export async function createHabit(habit: { 
+  name: string; 
+  description?: string; 
+  category?: string;
+  start_time?: string;
+  end_time?: string;
+}) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 

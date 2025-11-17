@@ -124,7 +124,16 @@ export default function MonthView() {
                     }}
                   >
                     <div className="p-2 flex items-center min-w-0">
-                      <span className="font-medium truncate text-sm">{habit.name}</span>
+                      <div>
+                        <div className="font-medium truncate text-sm">{habit.name}</div>
+                        {(habit.start_time || habit.end_time) && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {habit.start_time && habit.start_time.slice(0, 5)}
+                            {habit.start_time && habit.end_time && ' - '}
+                            {habit.end_time && habit.end_time.slice(0, 5)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {daysInMonth.slice(0, 31).map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');

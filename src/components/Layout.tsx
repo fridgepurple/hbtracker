@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import ThemeToggle from '@/components/ThemeToggle';
 import { 
   Calendar, 
   CalendarDays, 
@@ -44,6 +45,7 @@ export default function Layout({ children }: LayoutProps) {
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {user?.email}
             </span>
+            <ThemeToggle />
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>

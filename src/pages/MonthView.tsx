@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const queryClient = useQueryClient();
 
   const monthStart = startOfMonth(currentMonth);
@@ -22,6 +23,8 @@ export default function MonthView() {
     queryKey: ['habits'],
     queryFn: fetchHabits,
   });
+
+  const sortedHabits = useMemo(() => sortHabits(habits, sortBy), [habits, sortBy]);
 
   const { data: logs = [] } = useQuery({
     queryKey: ['habitLogs', format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')],
@@ -51,18 +54,33 @@ export default function MonthView() {
         {/* Month Navigator */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <CardTitle className="text-2xl">
+                  {format(currentMonth, 'MMMM yyyy')}
+                </CardTitle>
+                
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
               
-              <CardTitle className="text-2xl">
-                {format(currentMonth, 'MMMM yyyy')}
-              </CardTitle>
-              
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
         </Card>
@@ -90,7 +108,7 @@ export default function MonthView() {
         )}
 
         {/* Month Grid */}
-        {habits.length === 0 ? (
+        {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">

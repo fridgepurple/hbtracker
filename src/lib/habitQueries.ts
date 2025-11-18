@@ -10,6 +10,7 @@ export interface Habit {
   end_time?: string;
   created_at: string;
   archived_at?: string;
+  display_order?: number;
 }
 
 export interface HabitLog {

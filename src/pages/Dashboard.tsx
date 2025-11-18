@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog } from '@/lib/habitQueries';
+import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const queryClient = useQueryClient();
   
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -19,6 +22,8 @@ export default function Dashboard() {
     queryKey: ['habits'],
     queryFn: fetchHabits,
   });
+
+  const sortedHabits = useMemo(() => sortHabits(habits, sortBy), [habits, sortBy]);
 
   const { data: logs = [] } = useQuery({
     queryKey: ['habitLogs', dateStr, dateStr],
@@ -37,7 +42,7 @@ export default function Dashboard() {
     },
   });
 
-  const completedToday = habits.filter(habit =>
+  const completedToday = sortedHabits.filter(habit =>
     logs.some(log => log.habit_id === habit.id && log.completed)
   ).length;
 
@@ -70,7 +75,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-center">
               <div className="text-4xl font-bold text-primary">
-                {completedToday} / {habits.length}
+                {completedToday} / {sortedHabits.length}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 habits completed today
@@ -79,8 +84,24 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Sort Control */}
+        <div className="flex justify-end">
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Habits List */}
-        {habits.length === 0 ? (
+        {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
@@ -90,7 +111,7 @@ export default function Dashboard() {
           </Card>
         ) : (
           <div className="grid gap-3">
-            {habits.map(habit => {
+            {sortedHabits.map(habit => {
               const log = logs.find(l => l.habit_id === habit.id);
               const isCompleted = log?.completed || false;
 

@@ -28,6 +28,8 @@ export default function HabitsManagement() {
     queryFn: fetchHabits,
   });
 
+  const sortedHabits = useMemo(() => sortHabits(habits, sortBy), [habits, sortBy]);
+
   const createMutation = useMutation({
     mutationFn: createHabit,
     onSuccess: () => {
@@ -209,7 +211,7 @@ export default function HabitsManagement() {
         </div>
 
         {/* Habits List */}
-        {habits.length === 0 ? (
+        {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">

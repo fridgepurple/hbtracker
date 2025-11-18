@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import Layout from '@/components/Layout';
 import { fetchHabits, fetchHabitLogs, calculateYearlyOverview, calculateMonthlyProgress } from '@/lib/habitQueries';
+import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 export default function YearView() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedHabitId, setSelectedHabitId] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
 
   const yearStart = startOfYear(new Date(selectedYear, 0));
   const yearEnd = endOfYear(new Date(selectedYear, 0));
@@ -20,6 +22,8 @@ export default function YearView() {
     queryKey: ['habits'],
     queryFn: fetchHabits,
   });
+
+  const sortedHabits = useMemo(() => sortHabits(habits, sortBy), [habits, sortBy]);
 
   const { data: logs = [] } = useQuery({
     queryKey: ['habitLogs', format(yearStart, 'yyyy-MM-dd'), format(yearEnd, 'yyyy-MM-dd')],
@@ -55,31 +59,46 @@ export default function YearView() {
                 </Button>
               </div>
 
-              <Select value={selectedHabitId} onValueChange={setSelectedHabitId}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select habit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Habits (Average)</SelectItem>
-                  {habits.map(habit => (
-                    <SelectItem key={habit.id} value={habit.id}>
-                      {habit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={selectedHabitId} onValueChange={setSelectedHabitId}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select habit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Habits (Average)</SelectItem>
+                    {sortedHabits.map(habit => (
+                      <SelectItem key={habit.id} value={habit.id}>
+                        {habit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <CardDescription>
               {selectedHabitId === 'all' 
                 ? 'Average completion across all habits per month'
-                : `Monthly completion for ${habits.find(h => h.id === selectedHabitId)?.name}`
+                : `Monthly completion for ${sortedHabits.find(h => h.id === selectedHabitId)?.name}`
               }
             </CardDescription>
           </CardHeader>
         </Card>
 
         {/* Chart */}
-        {habits.length === 0 ? (
+        {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">

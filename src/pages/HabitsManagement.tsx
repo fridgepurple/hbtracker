@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import { fetchHabits, createHabit, updateHabit, archiveHabit, deleteHabit } from '@/lib/habitQueries';
+import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Archive } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,6 +16,7 @@ import { toast } from 'sonner';
 export default function HabitsManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const [formData, setFormData] = useState({ 
     name: '', 
     description: '', 

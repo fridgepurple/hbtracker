@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import ProgressCard from '@/components/ProgressCard';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress } from '@/lib/habitQueries';
+import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 

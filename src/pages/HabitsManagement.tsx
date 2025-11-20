@@ -10,8 +10,210 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Archive } from 'lucide-react';
+import { Plus, Edit, Trash2, Archive, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { supabase } from '@/integrations/supabase/client';
+
+interface SortableHabitCardProps {
+  habit: any;
+  isCustomSort: boolean;
+  onEdit: (habit: any) => void;
+  onArchive: (id: string) => void;
+  onDelete: (id: string) => void;
+  editingHabit: any;
+  formData: any;
+  setFormData: (data: any) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  updateMutation: any;
+  setEditingHabit: (habit: any) => void;
+}
+
+function SortableHabitCard({
+  habit,
+  isCustomSort,
+  onEdit,
+  onArchive,
+  onDelete,
+  editingHabit,
+  formData,
+  setFormData,
+  handleSubmit,
+  updateMutation,
+  setEditingHabit,
+}: SortableHabitCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: habit.id, disabled: !isCustomSort });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3 flex-1">
+              {isCustomSort && (
+                <button
+                  className="cursor-grab active:cursor-grabbing mt-1 text-muted-foreground hover:text-foreground"
+                  {...attributes}
+                  {...listeners}
+                >
+                  <GripVertical className="h-5 w-5" />
+                </button>
+              )}
+              <div className="flex-1">
+                <CardTitle>{habit.name}</CardTitle>
+                {habit.description && (
+                  <CardDescription className="mt-1">{habit.description}</CardDescription>
+                )}
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {habit.category && (
+                    <span className="inline-block px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                      {habit.category}
+                    </span>
+                  )}
+                  {(habit.start_time || habit.end_time) && (
+                    <span className="inline-block px-2 py-1 text-xs rounded-full bg-accent/10 text-accent-foreground">
+                      {habit.start_time && habit.start_time.slice(0, 5)}
+                      {habit.start_time && habit.end_time && ' - '}
+                      {habit.end_time && habit.end_time.slice(0, 5)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <Dialog open={editingHabit?.id === habit.id} onOpenChange={(open) => !open && setEditingHabit(null)}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => onEdit(habit)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <form onSubmit={handleSubmit}>
+                    <DialogHeader>
+                      <DialogTitle>Edit Habit</DialogTitle>
+                      <DialogDescription>
+                        Update your habit details
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name">Habit Name *</Label>
+                        <Input
+                          id="edit-name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-description">Description</Label>
+                        <Textarea
+                          id="edit-description"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-category">Category</Label>
+                        <Input
+                          id="edit-category"
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-start_time">Start Time</Label>
+                          <Input
+                            id="edit-start_time"
+                            type="time"
+                            value={formData.start_time}
+                            onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-end_time">End Time</Label>
+                          <Input
+                            id="edit-end_time"
+                            type="time"
+                            value={formData.end_time}
+                            onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button type="submit" disabled={updateMutation.isPending}>
+                        {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => onArchive(habit.id)}
+              >
+                <Archive className="h-4 w-4" />
+              </Button>
+
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => {
+                  if (confirm('Are you sure? This will permanently delete this habit and all its logs.')) {
+                    onDelete(habit.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+}
 
 export default function HabitsManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -25,6 +227,13 @@ export default function HabitsManagement() {
     end_time: ''
   });
   const queryClient = useQueryClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const { data: habits = [] } = useQuery({
     queryKey: ['habits'],
@@ -121,6 +330,48 @@ export default function HabitsManagement() {
     });
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedHabits.findIndex((h) => h.id === active.id);
+      const newIndex = sortedHabits.findIndex((h) => h.id === over.id);
+
+      const reorderedHabits = arrayMove(sortedHabits, oldIndex, newIndex);
+
+      // Update display_order for all affected habits
+      const updates = reorderedHabits.map((habit, index) => ({
+        id: habit.id,
+        display_order: index,
+      }));
+
+      try {
+        // Optimistically update the UI
+        queryClient.setQueryData(['habits'], (old: any) => {
+          return old.map((habit: any) => {
+            const update = updates.find((u) => u.id === habit.id);
+            return update ? { ...habit, display_order: update.display_order } : habit;
+          });
+        });
+
+        // Update in database
+        await Promise.all(
+          updates.map((update) =>
+            supabase
+              .from('habits')
+              .update({ display_order: update.display_order })
+              .eq('id', update.id)
+          )
+        );
+
+        toast.success('Habit order updated!');
+      } catch (error) {
+        toast.error('Failed to update habit order');
+        queryClient.invalidateQueries({ queryKey: ['habits'] });
+      }
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -213,6 +464,26 @@ export default function HabitsManagement() {
           </Dialog>
         </div>
 
+        {/* Sort Controls */}
+        <div className="flex items-center gap-4">
+          <Label htmlFor="sort-by" className="whitespace-nowrap">Sort by:</Label>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+            <SelectTrigger id="sort-by" className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {sortBy === 'custom' && (
+            <p className="text-sm text-muted-foreground">Drag habits to reorder</p>
+          )}
+        </div>
+
         {/* Habits List */}
         {sortedHabits.length === 0 ? (
           <Card>
@@ -227,135 +498,35 @@ export default function HabitsManagement() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {habits.map(habit => (
-              <Card key={habit.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle>{habit.name}</CardTitle>
-                      {habit.description && (
-                        <CardDescription className="mt-1">{habit.description}</CardDescription>
-                      )}
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {habit.category && (
-                          <span className="inline-block px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                            {habit.category}
-                          </span>
-                        )}
-                        {(habit.start_time || habit.end_time) && (
-                          <span className="inline-block px-2 py-1 text-xs rounded-full bg-accent/10 text-accent-foreground">
-                            {habit.start_time && habit.start_time.slice(0, 5)}
-                            {habit.start_time && habit.end_time && ' - '}
-                            {habit.end_time && habit.end_time.slice(0, 5)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Dialog open={editingHabit?.id === habit.id} onOpenChange={(open) => !open && setEditingHabit(null)}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => startEdit(habit)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <form onSubmit={handleSubmit}>
-                            <DialogHeader>
-                              <DialogTitle>Edit Habit</DialogTitle>
-                              <DialogDescription>
-                                Update your habit details
-                              </DialogDescription>
-                            </DialogHeader>
-                            
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-name">Habit Name *</Label>
-                                <Input
-                                  id="edit-name"
-                                  value={formData.name}
-                                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                  required
-                                />
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-description">Description</Label>
-                                <Textarea
-                                  id="edit-description"
-                                  value={formData.description}
-                                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                  rows={3}
-                                />
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-category">Category</Label>
-                                <Input
-                                  id="edit-category"
-                                  value={formData.category}
-                                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-start_time">Start Time</Label>
-                                  <Input
-                                    id="edit-start_time"
-                                    type="time"
-                                    value={formData.start_time}
-                                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-end_time">End Time</Label>
-                                  <Input
-                                    id="edit-end_time"
-                                    type="time"
-                                    value={formData.end_time}
-                                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <DialogFooter>
-                              <Button type="submit" disabled={updateMutation.isPending}>
-                                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-                              </Button>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => archiveMutation.mutate(habit.id)}
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => {
-                          if (confirm('Are you sure? This will permanently delete this habit and all its logs.')) {
-                            deleteMutation.mutate(habit.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedHabits.map((h) => h.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="grid gap-4">
+                {sortedHabits.map((habit) => (
+                  <SortableHabitCard
+                    key={habit.id}
+                    habit={habit}
+                    isCustomSort={sortBy === 'custom'}
+                    onEdit={startEdit}
+                    onArchive={(id) => archiveMutation.mutate(id)}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                    editingHabit={editingHabit}
+                    formData={formData}
+                    setFormData={setFormData}
+                    handleSubmit={handleSubmit}
+                    updateMutation={updateMutation}
+                    setEditingHabit={setEditingHabit}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </Layout>

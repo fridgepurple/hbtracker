@@ -4,18 +4,100 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from '
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import ProgressCard from '@/components/ProgressCard';
-import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress } from '@/lib/habitQueries';
+import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, updateHabit } from '@/lib/habitQueries';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableHabitMonthRowProps {
+  habit: any;
+  daysInMonth: Date[];
+  logs: any[];
+  isCustomSort: boolean;
+  onToggle: (habitId: string, date: string, completed: boolean) => void;
+}
+
+function SortableHabitMonthRow({ habit, daysInMonth, logs, isCustomSort, onToggle }: SortableHabitMonthRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: habit.id, disabled: !isCustomSort });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isCompleted = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return logs.some(log => log.habit_id === habit.id && log.date === dateStr && log.completed);
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={{
+        ...style,
+        gridTemplateColumns: `200px repeat(${Math.min(daysInMonth.length, 31)}, minmax(32px, 1fr))`
+      }}
+      className="grid gap-1 p-2 border-b hover:bg-muted/30 transition-colors"
+    >
+      <div className="p-2 flex items-center gap-2 min-w-0">
+        {isCustomSort && (
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing flex-shrink-0">
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+        <div>
+          <div className="font-medium truncate text-sm">{habit.name}</div>
+          {(habit.start_time || habit.end_time) && (
+            <div className="text-xs text-muted-foreground truncate">
+              {habit.start_time && habit.start_time.slice(0, 5)}
+              {habit.start_time && habit.end_time && ' - '}
+              {habit.end_time && habit.end_time.slice(0, 5)}
+            </div>
+          )}
+        </div>
+      </div>
+      {daysInMonth.slice(0, 31).map(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const completed = isCompleted(day);
+        
+        return (
+          <div key={dateStr} className="flex items-center justify-center">
+            <HabitCheckbox
+              checked={completed}
+              onCheckedChange={(checked) => onToggle(habit.id, dateStr, checked as boolean)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const queryClient = useQueryClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -45,9 +127,30 @@ export default function MonthView() {
     },
   });
 
-  const isCompleted = (habitId: string, date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return logs.some(log => log.habit_id === habitId && log.date === dateStr && log.completed);
+  const updateOrderMutation = useMutation({
+    mutationFn: async (updates: Array<{ id: string; display_order: number }>) => {
+      await Promise.all(updates.map(({ id, display_order }) => updateHabit(id, { display_order })));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['habits'] });
+    },
+  });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sortedHabits.findIndex(h => h.id === active.id);
+    const newIndex = sortedHabits.findIndex(h => h.id === over.id);
+    
+    const newOrder = arrayMove(sortedHabits, oldIndex, newIndex);
+    const updates = newOrder.map((habit, index) => ({
+      id: habit.id,
+      display_order: index,
+    }));
+    
+    updateOrderMutation.mutate(updates);
   };
 
   return (
@@ -135,47 +238,29 @@ export default function MonthView() {
                 </div>
 
                 {/* Habit Rows */}
-                {habits.map(habit => (
-                  <div 
-                    key={habit.id} 
-                    className="grid gap-1 p-2 border-b hover:bg-muted/30 transition-colors"
-                    style={{
-                      gridTemplateColumns: `200px repeat(${Math.min(daysInMonth.length, 31)}, minmax(32px, 1fr))`
-                    }}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={sortedHabits.map(h => h.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="p-2 flex items-center min-w-0">
-                      <div>
-                        <div className="font-medium truncate text-sm">{habit.name}</div>
-                        {(habit.start_time || habit.end_time) && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {habit.start_time && habit.start_time.slice(0, 5)}
-                            {habit.start_time && habit.end_time && ' - '}
-                            {habit.end_time && habit.end_time.slice(0, 5)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {daysInMonth.slice(0, 31).map(day => {
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const completed = isCompleted(habit.id, day);
-                      
-                      return (
-                        <div key={dateStr} className="flex items-center justify-center">
-                          <HabitCheckbox
-                            checked={completed}
-                            onCheckedChange={(checked) =>
-                              toggleMutation.mutate({
-                                habitId: habit.id,
-                                date: dateStr,
-                                completed: checked as boolean,
-                              })
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                    {sortedHabits.map(habit => (
+                      <SortableHabitMonthRow
+                        key={habit.id}
+                        habit={habit}
+                        daysInMonth={daysInMonth}
+                        logs={logs}
+                        isCustomSort={sortBy === 'custom'}
+                        onToggle={(habitId, date, completed) =>
+                          toggleMutation.mutate({ habitId, date, completed })
+                        }
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           </Card>

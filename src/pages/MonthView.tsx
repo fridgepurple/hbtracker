@@ -55,9 +55,14 @@ function SortableHabitMonthRow({ habit, daysInMonth, logs, isCustomSort, onToggl
     >
       <div className="p-2 flex items-center gap-2 min-w-0">
         {isCustomSort && (
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing flex-shrink-0">
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
-          </div>
+          <button
+            type="button"
+            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-5 w-5" />
+          </button>
         )}
         <div>
           <div className="font-medium truncate text-sm">{habit.name}</div>

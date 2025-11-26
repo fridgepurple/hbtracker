@@ -47,9 +47,14 @@ function SortableHabitRow({ habit, daysOfWeek, logs, isCustomSort, onToggle }: S
     <div ref={setNodeRef} style={style} className="grid grid-cols-8 border-b hover:bg-muted/30 transition-colors">
       <div className="p-3 flex items-center gap-2">
         {isCustomSort && (
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
-          </div>
+          <button
+            type="button"
+            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-5 w-5" />
+          </button>
         )}
         <div className="min-w-0">
           <div className="font-medium truncate">{habit.name}</div>

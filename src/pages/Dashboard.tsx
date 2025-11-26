@@ -44,9 +44,14 @@ function SortableHabitCard({ habit, log, isCustomSort, onToggle }: SortableHabit
       <CardContent className="py-4">
         <div className="flex items-center gap-4">
           {isCustomSort && (
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-              <GripVertical className="h-5 w-5 text-muted-foreground" />
-            </div>
+            <button
+              type="button"
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
           )}
           <HabitCheckbox
             checked={isCompleted}

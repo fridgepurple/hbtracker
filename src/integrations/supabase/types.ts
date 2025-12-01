@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          completed: boolean
+          created_at: string
+          description: string | null
+          id: string
+          month: number
+          progress: number
+          title: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          month: number
+          progress?: number
+          title: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          month?: number
+          progress?: number
+          title?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       habit_logs: {
         Row: {
           completed: boolean

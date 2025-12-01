@@ -9,6 +9,7 @@ import WeekView from "./pages/WeekView";
 import MonthView from "./pages/MonthView";
 import YearView from "./pages/YearView";
 import HabitsManagement from "./pages/HabitsManagement";
+import Goals from "./pages/Goals";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/month" element={<ProtectedRoute><MonthView /></ProtectedRoute>} />
             <Route path="/year" element={<ProtectedRoute><YearView /></ProtectedRoute>} />
             <Route path="/habits" element={<ProtectedRoute><HabitsManagement /></ProtectedRoute>} />
+            <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

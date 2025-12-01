@@ -10,7 +10,8 @@ import {
   BarChart3, 
   List,
   LogOut,
-  CheckCircle2
+  CheckCircle2,
+  Target
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -27,6 +28,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/month', label: 'Month', icon: CalendarRange },
     { path: '/year', label: 'Year', icon: BarChart3 },
     { path: '/habits', label: 'Habits', icon: List },
+    { path: '/goals', label: 'Goals', icon: Target },
   ];
 
   return (

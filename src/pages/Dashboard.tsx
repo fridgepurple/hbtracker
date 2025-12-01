@@ -6,22 +6,22 @@ import HabitCheckbox from '@/components/HabitCheckbox';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, updateHabit } from '@/lib/habitQueries';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { GripVertical, Sunrise, Sun, Moon, Clock } from 'lucide-react';
 
 interface SortableHabitCardProps {
   habit: any;
-  log: any;
+  isCompleted: boolean;
   isCustomSort: boolean;
-  onToggle: (habitId: string, completed: boolean) => void;
+  onToggle: (checked: boolean) => void;
 }
 
-function SortableHabitCard({ habit, log, isCustomSort, onToggle }: SortableHabitCardProps) {
+function SortableHabitCard({ habit, isCompleted, isCustomSort, onToggle }: SortableHabitCardProps) {
   const {
     attributes,
     listeners,
@@ -37,12 +37,10 @@ function SortableHabitCard({ habit, log, isCustomSort, onToggle }: SortableHabit
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isCompleted = log?.completed || false;
-
   return (
-    <Card ref={setNodeRef} style={style} className="hover:shadow-md transition-shadow">
+    <Card ref={setNodeRef} style={style} className="hover:shadow-sm transition-all border-2">
       <CardContent className="py-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {isCustomSort && (
             <button
               type="button"
@@ -55,32 +53,79 @@ function SortableHabitCard({ habit, log, isCustomSort, onToggle }: SortableHabit
           )}
           <HabitCheckbox
             checked={isCompleted}
-            onCheckedChange={(checked) => onToggle(habit.id, checked as boolean)}
+            onCheckedChange={onToggle}
           />
-          
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium truncate">{habit.name}</h3>
-            {habit.description && (
-              <p className="text-sm text-muted-foreground truncate">
-                {habit.description}
-              </p>
-            )}
-            {habit.category && (
-              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                {habit.category}
-              </span>
+            <div className="font-medium truncate">{habit.name}</div>
+            {(habit.start_time || habit.end_time) && (
+              <div className="text-sm text-muted-foreground">
+                {habit.start_time && habit.start_time.slice(0, 5)}
+                {habit.start_time && habit.end_time && ' - '}
+                {habit.end_time && habit.end_time.slice(0, 5)}
+              </div>
             )}
           </div>
+          {habit.category && (
+            <Badge variant="secondary" className="hidden sm:inline-flex">{habit.category}</Badge>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
 
+type TimeOfDay = 'morning' | 'noon' | 'night' | 'unscheduled';
+
+function getTimeOfDay(startTime: string | null): TimeOfDay {
+  if (!startTime) return 'unscheduled';
+  
+  const hour = parseInt(startTime.split(':')[0]);
+  
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 18) return 'noon';
+  return 'night';
+}
+
+const timeOfDayConfig = {
+  morning: {
+    label: 'Morning',
+    icon: Sunrise,
+    gradient: 'from-blue-500/10 to-blue-600/10',
+    border: 'border-blue-500/20',
+    text: 'text-blue-600',
+    iconBg: 'bg-blue-500',
+  },
+  noon: {
+    label: 'Noon',
+    icon: Sun,
+    gradient: 'from-orange-500/10 to-orange-600/10',
+    border: 'border-orange-500/20',
+    text: 'text-orange-600',
+    iconBg: 'bg-orange-500',
+  },
+  night: {
+    label: 'Night',
+    icon: Moon,
+    gradient: 'from-purple-500/10 to-purple-600/10',
+    border: 'border-purple-500/20',
+    text: 'text-purple-600',
+    iconBg: 'bg-purple-500',
+  },
+  unscheduled: {
+    label: 'Unscheduled',
+    icon: Clock,
+    gradient: 'from-muted/10 to-muted/20',
+    border: 'border-muted/20',
+    text: 'text-muted-foreground',
+    iconBg: 'bg-muted',
+  },
+};
+
 export default function Dashboard() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const queryClient = useQueryClient();
+  const today = new Date();
+  const dateStr = format(today, 'yyyy-MM-dd');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -92,8 +137,6 @@ export default function Dashboard() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-  
-  const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const { data: habits = [] } = useQuery({
     queryKey: ['habits'],
@@ -101,6 +144,22 @@ export default function Dashboard() {
   });
 
   const sortedHabits = useMemo(() => sortHabits(habits, sortBy), [habits, sortBy]);
+  
+  const habitsByTimeOfDay = useMemo(() => {
+    const grouped: Record<TimeOfDay, typeof habits> = {
+      morning: [],
+      noon: [],
+      night: [],
+      unscheduled: [],
+    };
+    
+    sortedHabits.forEach(habit => {
+      const timeOfDay = getTimeOfDay(habit.start_time);
+      grouped[timeOfDay].push(habit);
+    });
+    
+    return grouped;
+  }, [sortedHabits]);
 
   const { data: logs = [] } = useQuery({
     queryKey: ['habitLogs', dateStr, dateStr],
@@ -145,65 +204,32 @@ export default function Dashboard() {
     updateOrderMutation.mutate(updates);
   };
 
-  const completedToday = sortedHabits.filter(habit =>
-    logs.some(log => log.habit_id === habit.id && log.completed)
-  ).length;
-
-  const changeDate = (days: number) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
-  };
-
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Date Navigator */}
+        {/* Header */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <Button variant="outline" size="icon" onClick={() => changeDate(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <CardTitle className="text-2xl">Today - {format(today, 'MMMM d, yyyy')}</CardTitle>
               
-              <CardTitle className="text-2xl">
-                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-              </CardTitle>
-              
-              <Button variant="outline" size="icon" onClick={() => changeDate(1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary">
-                {completedToday} / {sortedHabits.length}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                habits completed today
-              </p>
-            </div>
-          </CardContent>
         </Card>
 
-        {/* Sort Control */}
-        <div className="flex justify-end">
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Habits List */}
+        {/* Habits by Time of Day */}
         {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -218,27 +244,65 @@ export default function Dashboard() {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext
-              items={sortedHabits.map(h => h.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="grid gap-3">
-                {sortedHabits.map(habit => {
-                  const log = logs.find(l => l.habit_id === habit.id);
-                  return (
-                    <SortableHabitCard
-                      key={habit.id}
-                      habit={habit}
-                      log={log}
-                      isCustomSort={sortBy === 'custom'}
-                      onToggle={(habitId, completed) =>
-                        toggleMutation.mutate({ habitId, completed })
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
+            <div className="space-y-6">
+              {(['morning', 'noon', 'night', 'unscheduled'] as TimeOfDay[]).map(timeOfDay => {
+                const habitsInPeriod = habitsByTimeOfDay[timeOfDay];
+                if (habitsInPeriod.length === 0) return null;
+                
+                const config = timeOfDayConfig[timeOfDay];
+                const Icon = config.icon;
+                
+                return (
+                  <div key={timeOfDay}>
+                    <Card className={`bg-gradient-to-br ${config.gradient} ${config.border} mb-3`}>
+                      <CardHeader className="py-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-lg ${config.iconBg} text-white`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <CardTitle className={`text-lg ${config.text}`}>
+                            {config.label}
+                          </CardTitle>
+                          <Badge variant="secondary" className="ml-auto">
+                            {habitsInPeriod.filter(h => 
+                              logs.some(log => log.habit_id === h.id && log.date === dateStr && log.completed)
+                            ).length} / {habitsInPeriod.length}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                    
+                    <SortableContext
+                      items={habitsInPeriod.map(h => h.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-3">
+                        {habitsInPeriod.map(habit => {
+                          const completed = logs.some(log => 
+                            log.habit_id === habit.id && log.date === dateStr && log.completed
+                          );
+                          
+                          return (
+                            <SortableHabitCard
+                              key={habit.id}
+                              habit={habit}
+                              isCompleted={completed}
+                              isCustomSort={sortBy === 'custom'}
+                              onToggle={(checked) =>
+                                toggleMutation.mutate({ 
+                                  habitId: habit.id, 
+                                  completed: checked as boolean 
+                                })
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    </SortableContext>
+                  </div>
+                );
+              })}
+            </div>
           </DndContext>
         )}
       </div>

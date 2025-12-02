@@ -1,20 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
-import HabitHeatMap from '@/components/HabitHeatMap';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, updateHabit } from '@/lib/habitQueries';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Sunrise, Sun, Moon, Clock, Grid3X3, List } from 'lucide-react';
+import { GripVertical, Sunrise, Sun, Moon, Clock } from 'lucide-react';
 
 interface SortableHabitCardProps {
   habit: any;
@@ -125,11 +123,9 @@ const timeOfDayConfig = {
 
 export default function Dashboard() {
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
-  const [viewMode, setViewMode] = useState<'list' | 'heatmap'>('heatmap');
   const queryClient = useQueryClient();
   const today = new Date();
   const dateStr = format(today, 'yyyy-MM-dd');
-  const startDateStr = format(subDays(today, 29), 'yyyy-MM-dd');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -166,13 +162,13 @@ export default function Dashboard() {
   }, [sortedHabits]);
 
   const { data: logs = [] } = useQuery({
-    queryKey: ['habitLogs', startDateStr, dateStr],
-    queryFn: () => fetchHabitLogs(startDateStr, dateStr),
+    queryKey: ['habitLogs', dateStr, dateStr],
+    queryFn: () => fetchHabitLogs(dateStr, dateStr),
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ habitId, completed, date }: { habitId: string; completed: boolean; date?: string }) =>
-      toggleHabitLog(habitId, date || dateStr, completed),
+    mutationFn: ({ habitId, completed }: { habitId: string; completed: boolean }) =>
+      toggleHabitLog(habitId, dateStr, completed),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habitLogs'] });
       toast.success('Habit updated!');
@@ -217,58 +213,29 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="text-2xl">Today - {format(today, 'MMMM d, yyyy')}</CardTitle>
               
-              <div className="flex items-center gap-3">
-                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'heatmap')}>
-                  <TabsList>
-                    <TabsTrigger value="heatmap" className="gap-1.5">
-                      <Grid3X3 className="h-4 w-4" />
-                      Heat Map
-                    </TabsTrigger>
-                    <TabsTrigger value="list" className="gap-1.5">
-                      <List className="h-4 w-4" />
-                      List
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                
-                {viewMode === 'list' && (
-                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
         </Card>
 
-        {/* Habits */}
+        {/* Habits by Time of Day */}
         {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
                 No habits yet. <a href="/habits" className="text-primary hover:underline">Create your first habit</a>
               </p>
-            </CardContent>
-          </Card>
-        ) : viewMode === 'heatmap' ? (
-          <Card>
-            <CardContent className="py-6">
-              <HabitHeatMap
-                habits={sortedHabits}
-                logs={logs}
-                onToggle={(habitId, date, completed) => 
-                  toggleMutation.mutate({ habitId, completed, date })
-                }
-              />
             </CardContent>
           </Card>
         ) : (

@@ -247,7 +247,8 @@ export default function Dashboard() {
             <div className="space-y-6">
               {(['morning', 'noon', 'night', 'unscheduled'] as TimeOfDay[]).map(timeOfDay => {
                 const habitsInPeriod = habitsByTimeOfDay[timeOfDay];
-                if (habitsInPeriod.length === 0) return null;
+                // Only hide unscheduled if empty
+                if (timeOfDay === 'unscheduled' && habitsInPeriod.length === 0) return null;
                 
                 const config = timeOfDayConfig[timeOfDay];
                 const Icon = config.icon;

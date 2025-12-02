@@ -20,14 +20,19 @@ interface HabitHeatMapProps {
   logs: HabitLog[];
   onToggle: (habitId: string, date: string, completed: boolean) => void;
   days?: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
-export default function HabitHeatMap({ habits, logs, onToggle, days = 30 }: HabitHeatMapProps) {
+export default function HabitHeatMap({ habits, logs, onToggle, days = 30, startDate, endDate }: HabitHeatMapProps) {
   const dateRange = useMemo(() => {
+    if (startDate && endDate) {
+      return eachDayOfInterval({ start: startDate, end: endDate });
+    }
     const end = startOfDay(new Date());
     const start = subDays(end, days - 1);
     return eachDayOfInterval({ start, end });
-  }, [days]);
+  }, [days, startDate, endDate]);
 
   const logMap = useMemo(() => {
     const map = new Map<string, boolean>();

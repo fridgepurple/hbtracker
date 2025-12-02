@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
+import HabitHeatMap from '@/components/HabitHeatMap';
 import ProgressCard from '@/components/ProgressCard';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, updateHabit } from '@/lib/habitQueries';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChevronLeft, ChevronRight, GripVertical, Grid3X3, Table } from 'lucide-react';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -95,6 +97,7 @@ function SortableHabitMonthRow({ habit, daysInMonth, logs, isCustomSort, onToggl
 export default function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
+  const [viewMode, setViewMode] = useState<'grid' | 'heatmap'>('heatmap');
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
@@ -183,18 +186,33 @@ export default function MonthView() {
                 </Button>
               </div>
               
-              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-3">
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'heatmap')}>
+                  <TabsList>
+                    <TabsTrigger value="heatmap" className="gap-1.5">
+                      <Grid3X3 className="h-4 w-4" />
+                      Heat Map
+                    </TabsTrigger>
+                    <TabsTrigger value="grid" className="gap-1.5">
+                      <Table className="h-4 w-4" />
+                      Grid
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
         </Card>
@@ -221,13 +239,27 @@ export default function MonthView() {
           </div>
         )}
 
-        {/* Month Grid */}
+        {/* Month View Content */}
         {sortedHabits.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
                 No habits yet. <a href="/habits" className="text-primary hover:underline">Create your first habit</a>
               </p>
+            </CardContent>
+          </Card>
+        ) : viewMode === 'heatmap' ? (
+          <Card>
+            <CardContent className="py-6">
+              <HabitHeatMap
+                habits={sortedHabits}
+                logs={logs}
+                startDate={monthStart}
+                endDate={monthEnd}
+                onToggle={(habitId, date, completed) =>
+                  toggleMutation.mutate({ habitId, date, completed })
+                }
+              />
             </CardContent>
           </Card>
         ) : (

@@ -217,28 +217,6 @@ export default function MonthView() {
           </CardHeader>
         </Card>
 
-        {/* Progress Cards */}
-        {habits.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {habits.map(habit => {
-              const progress = calculateMonthlyProgress(
-                habit.id,
-                currentMonth.getFullYear(),
-                currentMonth.getMonth(),
-                logs
-              );
-
-              return (
-                <ProgressCard
-                  key={habit.id}
-                  habitName={habit.name}
-                  percentage={progress}
-                />
-              );
-            })}
-          </div>
-        )}
-
         {/* Month View Content */}
         {sortedHabits.length === 0 ? (
           <Card>
@@ -305,6 +283,32 @@ export default function MonthView() {
               </div>
             </div>
           </Card>
+        )}
+
+        {/* Progress Summary - Compact */}
+        {habits.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {habits.map(habit => {
+              const progress = calculateMonthlyProgress(
+                habit.id,
+                currentMonth.getFullYear(),
+                currentMonth.getMonth(),
+                logs
+              );
+
+              return (
+                <div
+                  key={habit.id}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-sm"
+                >
+                  <span className="font-medium truncate max-w-[120px]">{habit.name}</span>
+                  <span className={progress >= 70 ? 'text-success' : progress >= 40 ? 'text-warning' : 'text-muted-foreground'}>
+                    {progress}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </Layout>

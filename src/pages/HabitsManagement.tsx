@@ -104,6 +104,7 @@ function SortableHabitCard({
                       {habit.start_time && habit.start_time.slice(0, 5)}
                       {habit.start_time && habit.end_time && ' - '}
                       {habit.end_time && habit.end_time.slice(0, 5)}
+                      {habit.start_time && habit.end_time && habit.end_time < habit.start_time && ' (+1)'}
                     </span>
                   )}
                 </div>
@@ -302,13 +303,7 @@ export default function HabitsManagement() {
       return;
     }
 
-    // Validate time range if both are provided
-    if (formData.start_time && formData.end_time) {
-      if (formData.end_time <= formData.start_time) {
-        toast.error('End time must be after start time');
-        return;
-      }
-    }
+    // Note: We allow overnight time ranges (e.g., 21:00 to 05:00)
 
     const dataToSubmit = {
       ...formData,

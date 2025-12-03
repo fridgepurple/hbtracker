@@ -18,34 +18,43 @@ export type Database = {
         Row: {
           completed: boolean
           created_at: string
+          day: number | null
           description: string | null
+          goal_type: string
           id: string
           month: number
           progress: number
           title: string
           user_id: string
+          week: number | null
           year: number
         }
         Insert: {
           completed?: boolean
           created_at?: string
+          day?: number | null
           description?: string | null
+          goal_type?: string
           id?: string
           month: number
           progress?: number
           title: string
           user_id: string
+          week?: number | null
           year: number
         }
         Update: {
           completed?: boolean
           created_at?: string
+          day?: number | null
           description?: string | null
+          goal_type?: string
           id?: string
           month?: number
           progress?: number
           title?: string
           user_id?: string
+          week?: number | null
           year?: number
         }
         Relationships: []

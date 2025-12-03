@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, updateHabit } from '@/lib/habitQueries';
+import { getCategoryColor } from '@/lib/categoryColors';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,7 +67,9 @@ function SortableHabitCard({ habit, isCompleted, isCustomSort, onToggle }: Sorta
             )}
           </div>
           {habit.category && (
-            <Badge variant="secondary" className="hidden sm:inline-flex">{habit.category}</Badge>
+            <span className={`hidden sm:inline-flex px-2 py-1 text-xs rounded-full font-medium ${getCategoryColor(habit.category).bg} ${getCategoryColor(habit.category).text}`}>
+              {habit.category}
+            </span>
           )}
         </div>
       </CardContent>

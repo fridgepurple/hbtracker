@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import { fetchHabits, createHabit, updateHabit, archiveHabit, deleteHabit } from '@/lib/habitQueries';
+import { getCategoryColor } from '@/lib/categoryColors';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ function SortableHabitCard({
                 )}
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {habit.category && (
-                    <span className="inline-block px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                    <span className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${getCategoryColor(habit.category).bg} ${getCategoryColor(habit.category).text}`}>
                       {habit.category}
                     </span>
                   )}

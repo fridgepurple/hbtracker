@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, GripVertical, Grid3X3, Table } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Grid3X3, Table, TrendingDown, TrendingUp, Award } from 'lucide-react';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -285,29 +285,116 @@ export default function MonthView() {
           </Card>
         )}
 
-        {/* Progress Summary - Compact */}
+        {/* Progress Summary - Categorized */}
         {habits.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {habits.map(habit => {
-              const progress = calculateMonthlyProgress(
-                habit.id,
-                currentMonth.getFullYear(),
-                currentMonth.getMonth(),
-                logs
-              );
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Need Improve - Red */}
+            {(() => {
+              const needImproveHabits = habits.filter(habit => {
+                const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                return progress < 40;
+              });
               return (
-                <div
-                  key={habit.id}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-sm"
-                >
-                  <span className="font-medium truncate max-w-[120px]">{habit.name}</span>
-                  <span className={progress >= 70 ? 'text-success' : progress >= 40 ? 'text-warning' : 'text-muted-foreground'}>
-                    {progress}%
-                  </span>
-                </div>
+                <Card className="border-destructive/30 bg-destructive/5">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 rounded-full bg-destructive/20">
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      </div>
+                      <h3 className="font-semibold text-destructive">Need Improve</h3>
+                      <span className="ml-auto text-xs text-muted-foreground">(&lt;40%)</span>
+                    </div>
+                    {needImproveHabits.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No habits here</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {needImproveHabits.map(habit => {
+                          const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                          return (
+                            <li key={habit.id} className="flex items-center justify-between text-sm">
+                              <span className="truncate max-w-[150px]">{habit.name}</span>
+                              <span className="font-medium text-destructive">{progress}%</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
               );
-            })}
+            })()}
+
+            {/* Moderated - Yellow */}
+            {(() => {
+              const moderatedHabits = habits.filter(habit => {
+                const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                return progress >= 40 && progress < 70;
+              });
+              return (
+                <Card className="border-warning/30 bg-warning/5">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 rounded-full bg-warning/20">
+                        <TrendingUp className="h-4 w-4 text-warning" />
+                      </div>
+                      <h3 className="font-semibold text-warning">Moderated</h3>
+                      <span className="ml-auto text-xs text-muted-foreground">(40-69%)</span>
+                    </div>
+                    {moderatedHabits.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No habits here</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {moderatedHabits.map(habit => {
+                          const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                          return (
+                            <li key={habit.id} className="flex items-center justify-between text-sm">
+                              <span className="truncate max-w-[150px]">{habit.name}</span>
+                              <span className="font-medium text-warning">{progress}%</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Consistent - Green */}
+            {(() => {
+              const consistentHabits = habits.filter(habit => {
+                const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                return progress >= 70;
+              });
+              return (
+                <Card className="border-success/30 bg-success/5">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 rounded-full bg-success/20">
+                        <Award className="h-4 w-4 text-success" />
+                      </div>
+                      <h3 className="font-semibold text-success">Consistent</h3>
+                      <span className="ml-auto text-xs text-muted-foreground">(≥70%)</span>
+                    </div>
+                    {consistentHabits.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No habits here</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {consistentHabits.map(habit => {
+                          const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
+                          return (
+                            <li key={habit.id} className="flex items-center justify-between text-sm">
+                              <span className="truncate max-w-[150px]">{habit.name}</span>
+                              <span className="font-medium text-success">{progress}%</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
         )}
       </div>

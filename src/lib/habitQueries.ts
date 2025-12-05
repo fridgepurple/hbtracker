@@ -124,24 +124,32 @@ export async function deleteHabit(id: string) {
 }
 
 // Calculate monthly progress for a habit
+// For current month: calculates against days elapsed so far
+// For past months: calculates against the full month
 export function calculateMonthlyProgress(
   habitId: string,
   year: number,
   month: number,
   logs: HabitLog[]
 ): number {
+  const today = new Date();
   const monthStart = startOfMonth(new Date(year, month));
   const monthEnd = endOfMonth(new Date(year, month));
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  
+  // Determine end date: today if current month, otherwise end of month
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+  const effectiveEnd = isCurrentMonth ? today : monthEnd;
+  
+  const daysToCount = eachDayOfInterval({ start: monthStart, end: effectiveEnd });
   
   const completedDays = logs.filter(log => 
     log.habit_id === habitId && 
     log.completed &&
     new Date(log.date) >= monthStart &&
-    new Date(log.date) <= monthEnd
+    new Date(log.date) <= effectiveEnd
   ).length;
 
-  return Math.round((completedDays / daysInMonth.length) * 100);
+  return daysToCount.length > 0 ? Math.round((completedDays / daysToCount.length) * 100) : 0;
 }
 
 // Calculate yearly overview (average of all habits per month)

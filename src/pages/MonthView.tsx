@@ -292,7 +292,7 @@ export default function MonthView() {
             {(() => {
               const needImproveHabits = habits.filter(habit => {
                 const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
-                return progress < 40;
+                return progress < 50;
               });
               return (
                 <Card className="border-destructive/30 bg-destructive/5">
@@ -302,7 +302,7 @@ export default function MonthView() {
                         <TrendingDown className="h-4 w-4 text-destructive" />
                       </div>
                       <h3 className="font-semibold text-destructive">Need Improve</h3>
-                      <span className="ml-auto text-xs text-muted-foreground">(&lt;40%)</span>
+                      <span className="ml-auto text-xs text-muted-foreground">(&lt;50%)</span>
                     </div>
                     {needImproveHabits.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">No habits here</p>
@@ -328,7 +328,7 @@ export default function MonthView() {
             {(() => {
               const moderatedHabits = habits.filter(habit => {
                 const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
-                return progress >= 40 && progress < 70;
+                return progress >= 50 && progress < 80;
               });
               return (
                 <Card className="border-warning/30 bg-warning/5">
@@ -338,7 +338,7 @@ export default function MonthView() {
                         <TrendingUp className="h-4 w-4 text-warning" />
                       </div>
                       <h3 className="font-semibold text-warning">Moderated</h3>
-                      <span className="ml-auto text-xs text-muted-foreground">(40-69%)</span>
+                      <span className="ml-auto text-xs text-muted-foreground">(50-79%)</span>
                     </div>
                     {moderatedHabits.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">No habits here</p>
@@ -364,7 +364,7 @@ export default function MonthView() {
             {(() => {
               const consistentHabits = habits.filter(habit => {
                 const progress = calculateMonthlyProgress(habit.id, currentMonth.getFullYear(), currentMonth.getMonth(), logs);
-                return progress >= 70;
+                return progress >= 80;
               });
               return (
                 <Card className="border-success/30 bg-success/5">
@@ -374,7 +374,7 @@ export default function MonthView() {
                         <Award className="h-4 w-4 text-success" />
                       </div>
                       <h3 className="font-semibold text-success">Consistent</h3>
-                      <span className="ml-auto text-xs text-muted-foreground">(≥70%)</span>
+                      <span className="ml-auto text-xs text-muted-foreground">(≥80%)</span>
                     </div>
                     {consistentHabits.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">No habits here</p>

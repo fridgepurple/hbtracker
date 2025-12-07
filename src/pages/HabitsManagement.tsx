@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Archive, GripVertical } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Edit, Trash2, Archive, GripVertical, Calendar, CalendarDays, CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -217,10 +218,37 @@ function SortableHabitCard({
   );
 }
 
+type HabitViewType = 'daily' | 'weekly' | 'monthly';
+
+const habitViewConfig = {
+  daily: {
+    icon: Calendar,
+    label: 'Daily',
+    color: 'from-rose-500/10 to-rose-600/10',
+    border: 'border-rose-500/20',
+    text: 'text-rose-600',
+  },
+  weekly: {
+    icon: CalendarDays,
+    label: 'Weekly',
+    color: 'from-amber-500/10 to-amber-600/10',
+    border: 'border-amber-500/20',
+    text: 'text-amber-600',
+  },
+  monthly: {
+    icon: CalendarRange,
+    label: 'Monthly',
+    color: 'from-purple-500/10 to-purple-600/10',
+    border: 'border-purple-500/20',
+    text: 'text-purple-600',
+  },
+};
+
 export default function HabitsManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<any>(null);
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
+  const [viewType, setViewType] = useState<HabitViewType>('daily');
   const [formData, setFormData] = useState({ 
     name: '', 
     description: '', 
@@ -229,6 +257,8 @@ export default function HabitsManagement() {
     end_time: ''
   });
   const queryClient = useQueryClient();
+
+  const config = habitViewConfig[viewType];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -375,12 +405,32 @@ export default function HabitsManagement() {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* View Type Tabs */}
+        <Tabs value={viewType} onValueChange={(v) => setViewType(v as HabitViewType)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="daily" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Daily
+            </TabsTrigger>
+            <TabsTrigger value="weekly" className="gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Weekly
+            </TabsTrigger>
+            <TabsTrigger value="monthly" className="gap-2">
+              <CalendarRange className="h-4 w-4" />
+              Monthly
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Manage Habits</h1>
-            <p className="text-muted-foreground">Create and organize your daily habits</p>
-          </div>
+        <Card className={`bg-gradient-to-br ${config.color} ${config.border}`}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl">Manage {config.label} Habits</CardTitle>
+                <p className="text-muted-foreground mt-1">Create and organize your {viewType} habits</p>
+              </div>
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -462,7 +512,9 @@ export default function HabitsManagement() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Sort Controls */}
         <div className="flex items-center gap-4">

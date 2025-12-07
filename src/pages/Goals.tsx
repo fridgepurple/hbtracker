@@ -158,6 +158,15 @@ export default function Goals() {
   const totalGoals = goals.length;
   const overallProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
 
+  // Get goal status based on progress
+  const getGoalStatus = (progress: number) => {
+    if (progress >= 70) return { label: 'on track', color: 'text-green-600', bgColor: 'bg-green-500', icon: '✓' };
+    if (progress >= 40) return { label: 'at risk', color: 'text-yellow-600', bgColor: 'bg-yellow-500', icon: '⚡' };
+    return { label: 'off track', color: 'text-red-600', bgColor: 'bg-red-500', icon: '!' };
+  };
+
+  const overallStatus = getGoalStatus(overallProgress);
+
   const Icon = config.icon;
 
   return (
@@ -253,18 +262,26 @@ export default function Goals() {
               </Dialog>
             </div>
 
-            {/* Overall Progress */}
+            {/* Overall Progress with Status */}
             {totalGoals > 0 && (
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className={`${config.text} font-medium`}>Overall Progress</span>
-                  <span className={`${config.text} font-medium`}>
-                    {completedGoals} / {totalGoals} completed ({overallProgress}%)
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-foreground">This period is</span>
+                  <span className={`font-semibold ${overallStatus.color}`}>
+                    {overallStatus.label}.
                   </span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground font-medium">
+                    {overallProgress}% / 100%
+                  </span>
+                  <span className="text-muted-foreground">
+                    {completedGoals} / {totalGoals} completed
+                  </span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full bg-gradient-to-r ${config.color.replace('/10', '')} transition-all duration-500`}
+                    className={`h-full ${overallStatus.bgColor} transition-all duration-500`}
                     style={{ width: `${overallProgress}%` }}
                   />
                 </div>
@@ -324,24 +341,39 @@ export default function Goals() {
                       </Button>
                     </div>
 
-                    {/* Progress Slider */}
+                    {/* Progress Slider with Status */}
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className={`${config.text} font-medium`}>Progress</span>
-                        <span className={`${config.text} font-medium`}>{goal.progress}%</span>
-                      </div>
-                      <Slider
-                        value={[goal.progress]}
-                        onValueChange={([value]) =>
-                          updateMutation.mutate({
-                            id: goal.id,
-                            updates: { progress: value },
-                          })
-                        }
-                        max={100}
-                        step={5}
-                        className={config.slider}
-                      />
+                      {(() => {
+                        const status = getGoalStatus(goal.progress);
+                        return (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className={`font-medium ${status.color}`}>
+                                {status.label}
+                              </span>
+                              <span className="text-muted-foreground font-medium">{goal.progress}%</span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${status.bgColor} transition-all duration-300`}
+                                style={{ width: `${goal.progress}%` }}
+                              />
+                            </div>
+                            <Slider
+                              value={[goal.progress]}
+                              onValueChange={([value]) =>
+                                updateMutation.mutate({
+                                  id: goal.id,
+                                  updates: { progress: value },
+                                })
+                              }
+                              max={100}
+                              step={5}
+                              className={config.slider}
+                            />
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </CardContent>

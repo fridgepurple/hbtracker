@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange, TrendingUp, AlertTriangle, TrendingDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 
 const goalTypeConfig = {
@@ -253,58 +253,20 @@ export default function Goals() {
               </Dialog>
             </div>
 
-            {/* Overall Progress - Asana Style */}
+            {/* Overall Progress */}
             {totalGoals > 0 && (
-              <div className="mt-6 space-y-4">
-                {/* Status Indicator */}
-                <div className="flex items-center gap-2">
-                  {overallProgress >= 70 ? (
-                    <>
-                      <div className="p-2 rounded-full bg-success/20">
-                        <TrendingUp className="h-5 w-5 text-success" />
-                      </div>
-                      <span className="text-lg font-medium">
-                        Your goals are <span className="text-success font-semibold">on track.</span>
-                      </span>
-                    </>
-                  ) : overallProgress >= 40 ? (
-                    <>
-                      <div className="p-2 rounded-full bg-warning/20">
-                        <AlertTriangle className="h-5 w-5 text-warning" />
-                      </div>
-                      <span className="text-lg font-medium">
-                        Your goals are <span className="text-warning font-semibold">at risk.</span>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="p-2 rounded-full bg-destructive/20">
-                        <TrendingDown className="h-5 w-5 text-destructive" />
-                      </div>
-                      <span className="text-lg font-medium">
-                        Your goals are <span className="text-destructive font-semibold">off track.</span>
-                      </span>
-                    </>
-                  )}
+              <div className="mt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className={`${config.text} font-medium`}>Overall Progress</span>
+                  <span className={`${config.text} font-medium`}>
+                    {completedGoals} / {totalGoals} completed ({overallProgress}%)
+                  </span>
                 </div>
-
-                {/* Progress Bar */}
-                <div className="p-4 rounded-lg bg-background/50 border">
-                  <div className="flex items-baseline gap-1 mb-3">
-                    <span className="text-2xl font-bold">{overallProgress}%</span>
-                    <span className="text-muted-foreground">/ 100%</span>
-                  </div>
-                  <div className="h-3 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-500 ${
-                        overallProgress >= 70 ? 'bg-success' : overallProgress >= 40 ? 'bg-warning' : 'bg-destructive'
-                      }`}
-                      style={{ width: `${overallProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {completedGoals} of {totalGoals} goals completed
-                  </p>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${config.color.replace('/10', '')} transition-all duration-500`}
+                    style={{ width: `${overallProgress}%` }}
+                  />
                 </div>
               </div>
             )}
@@ -362,24 +324,11 @@ export default function Goals() {
                       </Button>
                     </div>
 
-                    {/* Progress Bar with Slider */}
+                    {/* Progress Slider */}
                     <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all duration-300 ${
-                                goal.progress >= 70 ? 'bg-success' : goal.progress >= 40 ? 'bg-warning' : 'bg-destructive/60'
-                              }`}
-                              style={{ width: `${goal.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                        <span className={`text-sm font-medium min-w-[40px] text-right ${
-                          goal.progress >= 70 ? 'text-success' : goal.progress >= 40 ? 'text-warning' : 'text-muted-foreground'
-                        }`}>
-                          {goal.progress}%
-                        </span>
+                      <div className="flex justify-between text-sm">
+                        <span className={`${config.text} font-medium`}>Progress</span>
+                        <span className={`${config.text} font-medium`}>{goal.progress}%</span>
                       </div>
                       <Slider
                         value={[goal.progress]}
@@ -391,7 +340,7 @@ export default function Goals() {
                         }
                         max={100}
                         step={5}
-                        className={`${config.slider} opacity-60 hover:opacity-100 transition-opacity`}
+                        className={config.slider}
                       />
                     </div>
                   </div>

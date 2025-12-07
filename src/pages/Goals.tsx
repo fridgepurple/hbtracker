@@ -11,8 +11,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange, X } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Common goal emojis
+const goalEmojis = [
+  '🎯', '⭐', '🏆', '💪', '📚', '💰', '❤️', '🧘', '🏃', '🎨',
+  '✍️', '🎓', '💼', '🏠', '🌱', '🍎', '💤', '🧠', '🎵', '✈️',
+  '🤝', '📱', '🔥', '⚡', '🌟', '💎', '🎪', '🏋️', '🚀', '🎉'
+];
 
 const goalTypeConfig = {
   daily: {
@@ -50,6 +58,8 @@ export default function Goals() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDescription, setNewGoalDescription] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState('🎯');
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const currentWeek = getWeek(currentDate);
@@ -78,6 +88,7 @@ export default function Goals() {
       setIsCreateDialogOpen(false);
       setNewGoalTitle('');
       setNewGoalDescription('');
+      setSelectedEmoji('🎯');
     },
     onError: () => {
       toast.error('Failed to create goal');
@@ -113,7 +124,7 @@ export default function Goals() {
     }
 
     createMutation.mutate({
-      title: newGoalTitle,
+      title: `${selectedEmoji} ${newGoalTitle}`,
       description: newGoalDescription || undefined,
       month: currentMonth,
       year: currentYear,
@@ -221,42 +232,109 @@ export default function Goals() {
                 </Button>
               </div>
 
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+                setIsCreateDialogOpen(open);
+                if (!open) {
+                  setNewGoalTitle('');
+                  setNewGoalDescription('');
+                  setSelectedEmoji('🎯');
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button className={`${config.button} text-white`}>
                     <Plus className="h-4 w-4 mr-2" />
-                    New {goalType.charAt(0).toUpperCase() + goalType.slice(1)} Goal
+                    Add Goal
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
-                    <DialogTitle>Create New {goalType.charAt(0).toUpperCase() + goalType.slice(1)} Goal</DialogTitle>
+                    <DialogTitle className="text-xl">Add goal</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div>
-                      <label className="text-sm font-medium">Title</label>
-                      <Input
-                        value={newGoalTitle}
-                        onChange={(e) => setNewGoalTitle(e.target.value)}
-                        placeholder="Enter goal title"
-                        maxLength={100}
-                      />
+                  <div className="space-y-6 pt-4">
+                    {/* Question prompt */}
+                    <p className="text-muted-foreground">
+                      What is the goal or key result you want to accomplish?
+                    </p>
+
+                    {/* Emoji + Title */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Goal title</label>
+                      <div className="flex gap-2">
+                        <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="h-10 w-12 text-xl p-0"
+                            >
+                              {selectedEmoji}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-2" align="start">
+                            <div className="grid grid-cols-6 gap-1">
+                              {goalEmojis.map((emoji) => (
+                                <Button
+                                  key={emoji}
+                                  variant="ghost"
+                                  className="h-9 w-9 p-0 text-xl hover:bg-muted"
+                                  onClick={() => {
+                                    setSelectedEmoji(emoji);
+                                    setIsEmojiPickerOpen(false);
+                                  }}
+                                >
+                                  {emoji}
+                                </Button>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Input
+                          value={newGoalTitle}
+                          onChange={(e) => setNewGoalTitle(e.target.value)}
+                          placeholder="e.g., Read 12 books this year"
+                          className="flex-1"
+                          maxLength={100}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Description (Optional)</label>
+
+                    {/* Time Period */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Time period</label>
+                      <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30">
+                        <Icon className={`h-4 w-4 ${config.text}`} />
+                        <span className="text-sm">{getDateLabel()}</span>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Description (optional)</label>
                       <Textarea
                         value={newGoalDescription}
                         onChange={(e) => setNewGoalDescription(e.target.value)}
-                        placeholder="Add details about your goal"
+                        placeholder="Add more details about what you want to achieve..."
+                        className="min-h-[80px]"
                         maxLength={500}
                       />
                     </div>
-                    <Button
-                      onClick={handleCreateGoal}
-                      className={`w-full ${config.button}`}
-                    >
-                      Create Goal
-                    </Button>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreateGoal}
+                        className={`flex-1 ${config.button}`}
+                        disabled={!newGoalTitle.trim()}
+                      >
+                        Save Goal
+                      </Button>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>

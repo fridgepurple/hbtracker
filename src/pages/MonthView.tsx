@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight, GripVertical, Grid3X3, Table, TrendingDown, TrendingUp, Award } from 'lucide-react';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -66,16 +67,28 @@ function SortableHabitMonthRow({ habit, daysInMonth, logs, isCustomSort, onToggl
             <GripVertical className="h-5 w-5" />
           </button>
         )}
-        <div>
-          <div className="font-medium truncate text-sm">{habit.name}</div>
-          {(habit.start_time || habit.end_time) && (
-            <div className="text-xs text-muted-foreground truncate">
-              {habit.start_time && habit.start_time.slice(0, 5)}
-              {habit.start_time && habit.end_time && ' - '}
-              {habit.end_time && habit.end_time.slice(0, 5)}
-            </div>
-          )}
-        </div>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="cursor-default">
+                <div className="font-medium truncate text-sm">{habit.name}</div>
+                {(habit.start_time || habit.end_time) && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    {habit.start_time && habit.start_time.slice(0, 5)}
+                    {habit.start_time && habit.end_time && ' - '}
+                    {habit.end_time && habit.end_time.slice(0, 5)}
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[200px]">
+              <p className="font-medium">{habit.name}</p>
+              {habit.description && (
+                <p className="text-xs text-muted-foreground mt-1">{habit.description}</p>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       {daysInMonth.slice(0, 31).map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');

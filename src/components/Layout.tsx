@@ -27,7 +27,6 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/week', label: 'Week', icon: CalendarDays },
     { path: '/month', label: 'Month', icon: CalendarRange },
     { path: '/year', label: 'Year', icon: BarChart3 },
-    { path: '/habits', label: 'Habits', icon: List },
     { path: '/goals', label: 'Goals', icon: Target },
   ];
 

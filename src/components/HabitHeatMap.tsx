@@ -7,6 +7,7 @@ interface Habit {
   id: string;
   name: string;
   category?: string;
+  description?: string;
 }
 
 interface HabitLog {
@@ -101,9 +102,19 @@ export default function HabitHeatMap({ habits, logs, onToggle, days = 30, startD
           {/* Habit rows */}
           {habits.map(habit => (
             <div key={habit.id} className="flex items-center gap-1 mb-1">
-              <div className="w-32 pr-2 truncate text-sm font-medium">
-                {habit.name}
-              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="w-32 pr-2 truncate text-sm font-medium cursor-default">
+                    {habit.name}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[200px]">
+                  <p className="font-medium">{habit.name}</p>
+                  {habit.description && (
+                    <p className="text-xs text-muted-foreground mt-1">{habit.description}</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
               <div className="flex gap-1">
                 {dateRange.map((date) => {
                   const dateStr = format(date, 'yyyy-MM-dd');

@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
 import { 
   Calendar, 
-  CalendarDays, 
   CalendarRange, 
   BarChart3, 
-  List,
   LogOut,
   CheckCircle2,
   Target
@@ -24,8 +22,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { path: '/', label: 'Today', icon: Calendar },
-    { path: '/week', label: 'Week', icon: CalendarDays },
-    { path: '/month', label: 'Month', icon: CalendarRange },
+    { path: '/month', label: 'Calendar', icon: CalendarRange },
     { path: '/year', label: 'Year', icon: BarChart3 },
     { path: '/goals', label: 'Goals', icon: Target },
   ];

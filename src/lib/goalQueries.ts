@@ -2,6 +2,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type GoalType = 'daily' | 'weekly' | 'monthly';
 
+export type GoalCategory = 'home' | 'finance' | 'work' | 'school' | 'personal';
+
 export interface Goal {
   id: string;
   user_id: string;
@@ -14,6 +16,7 @@ export interface Goal {
   week: number | null;
   day: number | null;
   goal_type: GoalType;
+  category: GoalCategory;
   created_at: string;
 }
 
@@ -64,6 +67,7 @@ export const createGoal = async (goal: {
   month: number;
   year: number;
   goal_type: GoalType;
+  category?: GoalCategory;
   week?: number;
   day?: number;
 }) => {
@@ -79,6 +83,7 @@ export const createGoal = async (goal: {
       month: goal.month,
       year: goal.year,
       goal_type: goal.goal_type,
+      category: goal.category || 'personal',
       week: goal.week || null,
       day: goal.day || null,
     })

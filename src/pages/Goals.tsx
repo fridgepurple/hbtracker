@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addMonths, getWeek, addWeeks, startOfWeek, endOfWeek, addDays, startOfMonth, getDate } from 'date-fns';
+import { format, addMonths, getWeek, addWeeks, startOfWeek, endOfWeek, addDays, getDate } from 'date-fns';
 import Layout from '@/components/Layout';
-import { fetchGoals, createGoal, updateGoal, deleteGoal, Goal, GoalType } from '@/lib/goalQueries';
+import { fetchGoals, createGoal, updateGoal, deleteGoal, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
+import { 
+  fetchProjects, fetchProjectTasks, createProject, updateProject, deleteProject,
+  createTask, updateTask, deleteTask, Project, ProjectTask 
+} from '@/lib/projectQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +14,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { 
+  ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange, 
+  Home, DollarSign, Briefcase, GraduationCap, Heart, FolderKanban, CheckCircle2
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 // Common goal emojis
@@ -52,14 +62,41 @@ const goalTypeConfig = {
   },
 };
 
+const categoryConfig: Record<GoalCategory, { icon: typeof Home; label: string; color: string; bgColor: string }> = {
+  home: { icon: Home, label: 'Home', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
+  finance: { icon: DollarSign, label: 'Finance', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+  work: { icon: Briefcase, label: 'Work', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+  school: { icon: GraduationCap, label: 'School', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+  personal: { icon: Heart, label: 'Personal / Wellness', color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30' },
+};
+
+const taskStatusConfig = {
+  todo: { label: 'To Do', color: 'bg-slate-500', textColor: 'text-slate-600' },
+  in_progress: { label: 'Working on it', color: 'bg-amber-500', textColor: 'text-amber-600' },
+  done: { label: 'Done', color: 'bg-green-500', textColor: 'text-green-600' },
+};
+
 export default function Goals() {
+  const [mainTab, setMainTab] = useState<'goals' | 'projects'>('goals');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [goalType, setGoalType] = useState<GoalType>('monthly');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDescription, setNewGoalDescription] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('🎯');
+  const [selectedCategory, setSelectedCategory] = useState<GoalCategory>('personal');
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  
+  // Projects state
+  const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [newProjectCategory, setNewProjectCategory] = useState<GoalCategory>('work');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  
   const queryClient = useQueryClient();
 
   const currentWeek = getWeek(currentDate);
@@ -69,6 +106,7 @@ export default function Goals() {
 
   const config = goalTypeConfig[goalType];
 
+  // Goals queries
   const { data: goals = [] } = useQuery({
     queryKey: ['goals', currentYear, currentMonth, goalType, currentWeek, currentDay],
     queryFn: () => fetchGoals(
@@ -78,9 +116,24 @@ export default function Goals() {
       goalType === 'weekly' ? currentWeek : undefined,
       goalType === 'daily' ? currentDay : undefined
     ),
+    enabled: mainTab === 'goals',
   });
 
-  const createMutation = useMutation({
+  // Projects queries
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchProjects,
+    enabled: mainTab === 'projects',
+  });
+
+  const { data: projectTasks = [] } = useQuery({
+    queryKey: ['project_tasks', selectedProjectId],
+    queryFn: () => selectedProjectId ? fetchProjectTasks(selectedProjectId) : Promise.resolve([]),
+    enabled: mainTab === 'projects' && !!selectedProjectId,
+  });
+
+  // Goals mutations
+  const createGoalMutation = useMutation({
     mutationFn: createGoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -89,13 +142,14 @@ export default function Goals() {
       setNewGoalTitle('');
       setNewGoalDescription('');
       setSelectedEmoji('🎯');
+      setSelectedCategory('personal');
     },
     onError: () => {
       toast.error('Failed to create goal');
     },
   });
 
-  const updateMutation = useMutation({
+  const updateGoalMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Goal> }) => updateGoal(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -106,7 +160,7 @@ export default function Goals() {
     },
   });
 
-  const deleteMutation = useMutation({
+  const deleteGoalMutation = useMutation({
     mutationFn: deleteGoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
@@ -117,20 +171,109 @@ export default function Goals() {
     },
   });
 
+  // Projects mutations
+  const createProjectMutation = useMutation({
+    mutationFn: createProject,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Project created!');
+      setIsCreateProjectDialogOpen(false);
+      setNewProjectName('');
+      setNewProjectDescription('');
+      setNewProjectCategory('work');
+    },
+    onError: () => {
+      toast.error('Failed to create project');
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: deleteProject,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setSelectedProjectId(null);
+      toast.success('Project deleted!');
+    },
+    onError: () => {
+      toast.error('Failed to delete project');
+    },
+  });
+
+  // Tasks mutations
+  const createTaskMutation = useMutation({
+    mutationFn: createTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      toast.success('Task created!');
+      setIsCreateTaskDialogOpen(false);
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+    },
+    onError: () => {
+      toast.error('Failed to create task');
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<ProjectTask> }) => updateTask(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+    },
+    onError: () => {
+      toast.error('Failed to update task');
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      toast.success('Task deleted!');
+    },
+    onError: () => {
+      toast.error('Failed to delete task');
+    },
+  });
+
   const handleCreateGoal = () => {
     if (!newGoalTitle.trim()) {
       toast.error('Please enter a goal title');
       return;
     }
 
-    createMutation.mutate({
+    createGoalMutation.mutate({
       title: `${selectedEmoji} ${newGoalTitle}`,
       description: newGoalDescription || undefined,
       month: currentMonth,
       year: currentYear,
       goal_type: goalType,
+      category: selectedCategory,
       week: goalType === 'weekly' ? currentWeek : undefined,
       day: goalType === 'daily' ? currentDay : undefined,
+    });
+  };
+
+  const handleCreateProject = () => {
+    if (!newProjectName.trim()) {
+      toast.error('Please enter a project name');
+      return;
+    }
+    createProjectMutation.mutate({
+      name: newProjectName,
+      description: newProjectDescription || undefined,
+      category: newProjectCategory,
+    });
+  };
+
+  const handleCreateTask = () => {
+    if (!newTaskTitle.trim() || !selectedProjectId) {
+      toast.error('Please enter a task title');
+      return;
+    }
+    createTaskMutation.mutate({
+      project_id: selectedProjectId,
+      title: newTaskTitle,
+      description: newTaskDescription || undefined,
     });
   };
 
@@ -169,7 +312,6 @@ export default function Goals() {
   const totalGoals = goals.length;
   const overallProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
 
-  // Get goal status based on progress
   const getGoalStatus = (progress: number) => {
     if (progress >= 70) return { label: 'on track', color: 'text-green-600', bgColor: 'bg-green-500', icon: '✓' };
     if (progress >= 40) return { label: 'at risk', color: 'text-yellow-600', bgColor: 'bg-yellow-500', icon: '⚡' };
@@ -177,288 +319,559 @@ export default function Goals() {
   };
 
   const overallStatus = getGoalStatus(overallProgress);
-
   const Icon = config.icon;
+
+  // Group goals by category
+  const goalsByCategory = goals.reduce((acc, goal) => {
+    const cat = (goal.category as GoalCategory) || 'personal';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(goal);
+    return acc;
+  }, {} as Record<GoalCategory, Goal[]>);
+
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const completedTasks = projectTasks.filter(t => t.status === 'done').length;
+  const totalTasks = projectTasks.length;
+  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Goal Type Tabs */}
-        <Tabs value={goalType} onValueChange={(v) => setGoalType(v as GoalType)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="daily" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Daily
-            </TabsTrigger>
-            <TabsTrigger value="weekly" className="gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger value="monthly" className="gap-2">
+        {/* Main Tabs: Goals vs Projects */}
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'goals' | 'projects')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="goals" className="gap-2">
               <CalendarRange className="h-4 w-4" />
-              Monthly
+              Goals
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2">
+              <FolderKanban className="h-4 w-4" />
+              Projects
             </TabsTrigger>
           </TabsList>
-        </Tabs>
 
-        {/* Header */}
-        <Card className={`bg-gradient-to-br ${config.color} ${config.border}`}>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={navigatePrevious}
-                  className={config.border}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+          {/* Goals Tab Content */}
+          <TabsContent value="goals" className="space-y-6 mt-6">
+            {/* Goal Type Tabs */}
+            <Tabs value={goalType} onValueChange={(v) => setGoalType(v as GoalType)}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="daily" className="gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Daily
+                </TabsTrigger>
+                <TabsTrigger value="weekly" className="gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  Weekly
+                </TabsTrigger>
+                <TabsTrigger value="monthly" className="gap-2">
+                  <CalendarRange className="h-4 w-4" />
+                  Monthly
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-5 w-5 ${config.text}`} />
-                  <CardTitle className={`text-xl sm:text-2xl bg-gradient-to-r ${config.text} bg-clip-text`}>
-                    {getDateLabel()}
-                  </CardTitle>
-                </div>
+            {/* Header */}
+            <Card className={`bg-gradient-to-br ${config.color} ${config.border}`}>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={navigatePrevious} className={config.border}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-5 w-5 ${config.text}`} />
+                      <CardTitle className={`text-xl sm:text-2xl bg-gradient-to-r ${config.text} bg-clip-text`}>
+                        {getDateLabel()}
+                      </CardTitle>
+                    </div>
+                    <Button variant="outline" size="icon" onClick={navigateNext} className={config.border}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={navigateNext}
-                  className={config.border}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+                  <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+                    setIsCreateDialogOpen(open);
+                    if (!open) {
+                      setNewGoalTitle('');
+                      setNewGoalDescription('');
+                      setSelectedEmoji('🎯');
+                      setSelectedCategory('personal');
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button className={`${config.button} text-white`}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Goal
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl">Add goal</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-6 pt-4">
+                        <p className="text-muted-foreground">
+                          What is the goal or key result you want to accomplish?
+                        </p>
 
-              <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
-                setIsCreateDialogOpen(open);
-                if (!open) {
-                  setNewGoalTitle('');
-                  setNewGoalDescription('');
-                  setSelectedEmoji('🎯');
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button className={`${config.button} text-white`}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Goal
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl">Add goal</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-6 pt-4">
-                    {/* Question prompt */}
-                    <p className="text-muted-foreground">
-                      What is the goal or key result you want to accomplish?
-                    </p>
-
-                    {/* Emoji + Title */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Goal title</label>
-                      <div className="flex gap-2">
-                        <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="h-10 w-12 text-xl p-0"
-                            >
-                              {selectedEmoji}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-64 p-2" align="start">
-                            <div className="grid grid-cols-6 gap-1">
-                              {goalEmojis.map((emoji) => (
-                                <Button
-                                  key={emoji}
-                                  variant="ghost"
-                                  className="h-9 w-9 p-0 text-xl hover:bg-muted"
-                                  onClick={() => {
-                                    setSelectedEmoji(emoji);
-                                    setIsEmojiPickerOpen(false);
-                                  }}
-                                >
-                                  {emoji}
-                                </Button>
+                        {/* Category Selection */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Category</label>
+                          <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as GoalCategory)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(categoryConfig).map(([key, { icon: CatIcon, label, color }]) => (
+                                <SelectItem key={key} value={key}>
+                                  <div className="flex items-center gap-2">
+                                    <CatIcon className={`h-4 w-4 ${color}`} />
+                                    <span>{label}</span>
+                                  </div>
+                                </SelectItem>
                               ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                        <Input
-                          value={newGoalTitle}
-                          onChange={(e) => setNewGoalTitle(e.target.value)}
-                          placeholder="e.g., Read 12 books this year"
-                          className="flex-1"
-                          maxLength={100}
-                        />
-                      </div>
-                    </div>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    {/* Time Period */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Time period</label>
-                      <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30">
-                        <Icon className={`h-4 w-4 ${config.text}`} />
-                        <span className="text-sm">{getDateLabel()}</span>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Description (optional)</label>
-                      <Textarea
-                        value={newGoalDescription}
-                        onChange={(e) => setNewGoalDescription(e.target.value)}
-                        placeholder="Add more details about what you want to achieve..."
-                        className="min-h-[80px]"
-                        maxLength={500}
-                      />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsCreateDialogOpen(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleCreateGoal}
-                        className={`flex-1 ${config.button}`}
-                        disabled={!newGoalTitle.trim()}
-                      >
-                        Save Goal
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Overall Progress with Status */}
-            {totalGoals > 0 && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-foreground">This period is</span>
-                  <span className={`font-semibold ${overallStatus.color}`}>
-                    {overallStatus.label}.
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground font-medium">
-                    {overallProgress}% / 100%
-                  </span>
-                  <span className="text-muted-foreground">
-                    {completedGoals} / {totalGoals} completed
-                  </span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${overallStatus.bgColor} transition-all duration-500`}
-                    style={{ width: `${overallProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </CardHeader>
-        </Card>
-
-        {/* Goals List */}
-        {goals.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No {goalType} goals set for this {goalType === 'daily' ? 'day' : goalType === 'weekly' ? 'week' : 'month'}. Create your first goal!
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {goals.map((goal) => (
-              <Card
-                key={goal.id}
-                className={`${config.border} hover:border-opacity-40 transition-colors`}
-              >
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <Checkbox
-                        checked={goal.completed}
-                        onCheckedChange={(checked) =>
-                          updateMutation.mutate({
-                            id: goal.id,
-                            updates: { completed: checked as boolean },
-                          })
-                        }
-                        className={`mt-1 ${config.checkbox}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3
-                          className={`font-semibold text-lg ${
-                            goal.completed ? 'line-through text-muted-foreground' : ''
-                          }`}
-                        >
-                          {goal.title}
-                        </h3>
-                        {goal.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate(goal.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Progress Slider with Status */}
-                    <div className="space-y-2">
-                      {(() => {
-                        const status = getGoalStatus(goal.progress);
-                        return (
-                          <>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={`font-medium ${status.color}`}>
-                                {status.label}
-                              </span>
-                              <span className="text-muted-foreground font-medium">{goal.progress}%</span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${status.bgColor} transition-all duration-300`}
-                                style={{ width: `${goal.progress}%` }}
-                              />
-                            </div>
-                            <Slider
-                              value={[goal.progress]}
-                              onValueChange={([value]) =>
-                                updateMutation.mutate({
-                                  id: goal.id,
-                                  updates: { progress: value },
-                                })
-                              }
-                              max={100}
-                              step={5}
-                              className={config.slider}
+                        {/* Emoji + Title */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Goal title</label>
+                          <div className="flex gap-2">
+                            <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" className="h-10 w-12 text-xl p-0">
+                                  {selectedEmoji}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-2" align="start">
+                                <div className="grid grid-cols-6 gap-1">
+                                  {goalEmojis.map((emoji) => (
+                                    <Button
+                                      key={emoji}
+                                      variant="ghost"
+                                      className="h-9 w-9 p-0 text-xl hover:bg-muted"
+                                      onClick={() => {
+                                        setSelectedEmoji(emoji);
+                                        setIsEmojiPickerOpen(false);
+                                      }}
+                                    >
+                                      {emoji}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                            <Input
+                              value={newGoalTitle}
+                              onChange={(e) => setNewGoalTitle(e.target.value)}
+                              placeholder="e.g., Read 12 books this year"
+                              className="flex-1"
+                              maxLength={100}
                             />
-                          </>
-                        );
-                      })()}
+                          </div>
+                        </div>
+
+                        {/* Time Period */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Time period</label>
+                          <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30">
+                            <Icon className={`h-4 w-4 ${config.text}`} />
+                            <span className="text-sm">{getDateLabel()}</span>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Description (optional)</label>
+                          <Textarea
+                            value={newGoalDescription}
+                            onChange={(e) => setNewGoalDescription(e.target.value)}
+                            placeholder="Add more details about what you want to achieve..."
+                            className="min-h-[80px]"
+                            maxLength={500}
+                          />
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-2">
+                          <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">
+                            Cancel
+                          </Button>
+                          <Button onClick={handleCreateGoal} className={`flex-1 ${config.button}`} disabled={!newGoalTitle.trim()}>
+                            Save Goal
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* Overall Progress */}
+                {totalGoals > 0 && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground">This period is</span>
+                      <span className={`font-semibold ${overallStatus.color}`}>{overallStatus.label}.</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground font-medium">{overallProgress}% / 100%</span>
+                      <span className="text-muted-foreground">{completedGoals} / {totalGoals} completed</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full ${overallStatus.bgColor} transition-all duration-500`} style={{ width: `${overallProgress}%` }} />
                     </div>
                   </div>
+                )}
+              </CardHeader>
+            </Card>
+
+            {/* Goals List by Category */}
+            {goals.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">
+                    No {goalType} goals set for this {goalType === 'daily' ? 'day' : goalType === 'weekly' ? 'week' : 'month'}. Create your first goal!
+                  </p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(goalsByCategory).map(([category, categoryGoals]) => {
+                  const catConfig = categoryConfig[category as GoalCategory];
+                  const CatIcon = catConfig.icon;
+                  return (
+                    <div key={category} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className={`${catConfig.bgColor} ${catConfig.color} gap-1`}>
+                          <CatIcon className="h-3 w-3" />
+                          {catConfig.label}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {categoryGoals.filter(g => g.completed).length}/{categoryGoals.length} completed
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {categoryGoals.map((goal) => (
+                          <Card key={goal.id} className={`${config.border} hover:border-opacity-40 transition-colors`}>
+                            <CardContent className="pt-6">
+                              <div className="space-y-4">
+                                <div className="flex items-start gap-4">
+                                  <Checkbox
+                                    checked={goal.completed}
+                                    onCheckedChange={(checked) =>
+                                      updateGoalMutation.mutate({ id: goal.id, updates: { completed: checked as boolean } })
+                                    }
+                                    className={`mt-1 ${config.checkbox}`}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className={`font-semibold text-lg ${goal.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                      {goal.title}
+                                    </h3>
+                                    {goal.description && (
+                                      <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => deleteGoalMutation.mutate(goal.id)}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                {/* Progress Slider */}
+                                <div className="space-y-2">
+                                  {(() => {
+                                    const status = getGoalStatus(goal.progress);
+                                    return (
+                                      <>
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className={`font-medium ${status.color}`}>{status.label}</span>
+                                          <span className="text-muted-foreground font-medium">{goal.progress}%</span>
+                                        </div>
+                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                          <div className={`h-full ${status.bgColor} transition-all`} style={{ width: `${goal.progress}%` }} />
+                                        </div>
+                                        <Slider
+                                          value={[goal.progress]}
+                                          onValueChange={([value]) =>
+                                            updateGoalMutation.mutate({ id: goal.id, updates: { progress: value } })
+                                          }
+                                          max={100}
+                                          step={5}
+                                          className={`mt-2 ${config.slider}`}
+                                        />
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Projects Tab Content */}
+          <TabsContent value="projects" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Projects List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Projects</h2>
+                  <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Plus className="h-4 w-4 mr-1" />
+                        New
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create Project</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Category</label>
+                          <Select value={newProjectCategory} onValueChange={(v) => setNewProjectCategory(v as GoalCategory)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(categoryConfig).map(([key, { icon: CatIcon, label, color }]) => (
+                                <SelectItem key={key} value={key}>
+                                  <div className="flex items-center gap-2">
+                                    <CatIcon className={`h-4 w-4 ${color}`} />
+                                    <span>{label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Project Name</label>
+                          <Input
+                            value={newProjectName}
+                            onChange={(e) => setNewProjectName(e.target.value)}
+                            placeholder="e.g., Home Renovation"
+                            maxLength={100}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Description (optional)</label>
+                          <Textarea
+                            value={newProjectDescription}
+                            onChange={(e) => setNewProjectDescription(e.target.value)}
+                            placeholder="What is this project about?"
+                            maxLength={500}
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <Button variant="outline" onClick={() => setIsCreateProjectDialogOpen(false)} className="flex-1">
+                            Cancel
+                          </Button>
+                          <Button onClick={handleCreateProject} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!newProjectName.trim()}>
+                            Create
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {projects.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <FolderKanban className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No projects yet</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {projects.map((project) => {
+                      const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
+                      const CatIcon = catConfig.icon;
+                      const isSelected = selectedProjectId === project.id;
+                      return (
+                        <Card
+                          key={project.id}
+                          className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:border-blue-300'}`}
+                          onClick={() => setSelectedProjectId(project.id)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${catConfig.bgColor}`}>
+                                <CatIcon className={`h-4 w-4 ${catConfig.color}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium truncate">{project.name}</h3>
+                                <p className="text-xs text-muted-foreground">{catConfig.label}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Tasks Panel */}
+              <div className="lg:col-span-2">
+                {selectedProject ? (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>{selectedProject.name}</CardTitle>
+                          {selectedProject.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{selectedProject.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Task
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Add Task</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">Task Title</label>
+                                  <Input
+                                    value={newTaskTitle}
+                                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                                    placeholder="e.g., Buy paint supplies"
+                                    maxLength={200}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">Description (optional)</label>
+                                  <Textarea
+                                    value={newTaskDescription}
+                                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                                    placeholder="Add details..."
+                                    maxLength={500}
+                                  />
+                                </div>
+                                <div className="flex gap-3">
+                                  <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)} className="flex-1">
+                                    Cancel
+                                  </Button>
+                                  <Button onClick={handleCreateTask} className="flex-1 bg-green-600 hover:bg-green-700" disabled={!newTaskTitle.trim()}>
+                                    Add Task
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Project Progress */}
+                      {totalTasks > 0 && (
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{taskProgress}% complete</span>
+                            <span className="text-muted-foreground">{completedTasks}/{totalTasks} tasks</span>
+                          </div>
+                          <Progress value={taskProgress} className="h-2" />
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      {projectTasks.length === 0 ? (
+                        <div className="py-8 text-center">
+                          <CheckCircle2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">No tasks yet. Add your first task!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {projectTasks.map((task) => {
+                            const statusConfig = taskStatusConfig[task.status as keyof typeof taskStatusConfig] || taskStatusConfig.todo;
+                            return (
+                              <div
+                                key={task.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                              >
+                                <Checkbox
+                                  checked={task.status === 'done'}
+                                  onCheckedChange={(checked) =>
+                                    updateTaskMutation.mutate({
+                                      id: task.id,
+                                      updates: { status: checked ? 'done' : 'todo' },
+                                    })
+                                  }
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-medium ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                                    {task.title}
+                                  </p>
+                                  {task.description && (
+                                    <p className="text-xs text-muted-foreground truncate">{task.description}</p>
+                                  )}
+                                </div>
+                                <Select
+                                  value={task.status}
+                                  onValueChange={(value) => updateTaskMutation.mutate({ id: task.id, updates: { status: value } })}
+                                >
+                                  <SelectTrigger className="w-32 h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="todo">To Do</SelectItem>
+                                    <SelectItem value="in_progress">Working on it</SelectItem>
+                                    <SelectItem value="done">Done</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteTaskMutation.mutate(task.id)}
+                                  className="text-destructive hover:text-destructive h-8 w-8"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Select a project to view its tasks</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

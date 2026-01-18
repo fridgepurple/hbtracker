@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Dashboard from "./pages/Dashboard";
-import WeekView from "./pages/WeekView";
 import MonthView from "./pages/MonthView";
 import YearView from "./pages/YearView";
 import HabitsManagement from "./pages/HabitsManagement";
@@ -43,7 +42,6 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/week" element={<ProtectedRoute><WeekView /></ProtectedRoute>} />
             <Route path="/month" element={<ProtectedRoute><MonthView /></ProtectedRoute>} />
             <Route path="/year" element={<ProtectedRoute><YearView /></ProtectedRoute>} />
             <Route path="/habits" element={<ProtectedRoute><HabitsManagement /></ProtectedRoute>} />

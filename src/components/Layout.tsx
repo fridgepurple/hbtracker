@@ -3,13 +3,21 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Calendar, 
   CalendarRange, 
   BarChart3, 
   LogOut,
   CheckCircle2,
-  Target
+  Target,
+  ChevronDown,
+  FolderKanban
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -20,12 +28,13 @@ export default function Layout({ children }: LayoutProps) {
   const { signOut, user } = useAuth();
   const location = useLocation();
 
-  const navItems = [
+  const habitTrackerItems = [
     { path: '/', label: 'Today', icon: Calendar },
     { path: '/month', label: 'Calendar', icon: CalendarRange },
     { path: '/year', label: 'Year', icon: BarChart3 },
-    { path: '/goals', label: 'Goals', icon: Target },
   ];
+
+  const isHabitTrackerActive = ['/', '/month', '/year'].includes(location.pathname);
 
   return (
     <div className="min-h-screen bg-background">
@@ -56,22 +65,48 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="border-b bg-card/30">
         <div className="container mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive ? 'default' : 'ghost'}
-                    className="flex items-center gap-2 whitespace-nowrap"
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Button>
-                </Link>
-              );
-            })}
+            {/* Habit Tracker Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={isHabitTrackerActive ? 'default' : 'ghost'}
+                  className="flex items-center gap-2 whitespace-nowrap"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Habit Tracker</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-popover">
+                {habitTrackerItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  
+                  return (
+                    <DropdownMenuItem key={item.path} asChild>
+                      <Link
+                        to={item.path}
+                        className={`flex items-center gap-2 w-full ${isActive ? 'bg-accent' : ''}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Goals */}
+            <Link to="/goals">
+              <Button
+                variant={location.pathname === '/goals' ? 'default' : 'ghost'}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <Target className="h-4 w-4" />
+                <span>Goals</span>
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>

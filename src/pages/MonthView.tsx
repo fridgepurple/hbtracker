@@ -190,7 +190,7 @@ export default function MonthView() {
                 </Button>
                 
                 <CardTitle className="text-2xl">
-                  {format(currentMonth, 'MMMM yyyy')}
+                  {format(currentMonth, 'MMMM')} <span className="text-muted-foreground">{format(currentMonth, 'yyyy')}</span>
                 </CardTitle>
                 
                 <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>

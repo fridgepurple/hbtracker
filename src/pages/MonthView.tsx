@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import HabitHeatMap from '@/components/HabitHeatMap';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, updateHabit } from '@/lib/habitQueries';
+import { fetchMoodEntries, upsertMoodEntry } from '@/lib/moodQueries';
+import DayCheckInDialog, { energyToEmoji, emotionToEmoji } from '@/components/DayCheckInDialog';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import { toast } from 'sonner';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
 
 interface SortableHabitMonthRowProps {
   habit: any;
@@ -110,6 +113,8 @@ export default function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const [viewMode, setViewMode] = useState<'grid' | 'heatmap'>('heatmap');
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [checkInDate, setCheckInDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
@@ -139,6 +144,17 @@ export default function MonthView() {
     queryFn: () => fetchHabitLogs(format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')),
   });
 
+  const { data: moodEntries = [] } = useQuery({
+    queryKey: ['moodEntries', format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')],
+    queryFn: () => fetchMoodEntries(format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')),
+  });
+
+  const moodEntryByDate = useMemo(() => {
+    const map = new Map<string, (typeof moodEntries)[number]>();
+    for (const e of moodEntries) map.set(e.date, e);
+    return map;
+  }, [moodEntries]);
+
   const toggleMutation = useMutation({
     mutationFn: ({ habitId, date, completed }: { habitId: string; date: string; completed: boolean }) =>
       toggleHabitLog(habitId, date, completed),
@@ -150,6 +166,21 @@ export default function MonthView() {
       toast.error('Failed to update habit');
     },
   });
+
+  const moodUpsertMutation = useMutation({
+    mutationFn: upsertMoodEntry,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['moodEntries'] });
+    },
+    onError: () => {
+      toast.error('Failed to save check-in');
+    },
+  });
+
+  const openCheckIn = useCallback((date: string) => {
+    setCheckInDate(date);
+    setCheckInOpen(true);
+  }, []);
 
   const updateOrderMutation = useMutation({
     mutationFn: async (updates: Array<{ id: string; display_order: number }>) => {
@@ -248,6 +279,66 @@ export default function MonthView() {
                 endDate={monthEnd}
                 onToggle={(habitId, date, completed) =>
                   toggleMutation.mutate({ habitId, date, completed })
+                }
+                onDayClick={(date) => openCheckIn(date)}
+                bottomRows={
+                  <div className="mt-3 space-y-1">
+                    {/* Mood row */}
+                    <div className="flex items-center gap-1">
+                      <div className="w-32 pr-2 truncate text-xs font-medium text-muted-foreground">Mood</div>
+                      <div className="flex gap-1">
+                        {daysInMonth.map((d) => {
+                          const dateStr = format(d, 'yyyy-MM-dd');
+                          const entry = moodEntryByDate.get(dateStr);
+                          const emoji = entry?.mood_emoji ?? emotionToEmoji(entry?.emotion) ?? '·';
+                          const isPlaceholder = emoji === '·';
+                          return (
+                            <button
+                              key={`mood-${dateStr}`}
+                              type="button"
+                              onClick={() => openCheckIn(dateStr)}
+                              className={cn(
+                                'w-6 h-6 rounded-sm border border-border/50 flex items-center justify-center text-[12px] transition-transform',
+                                'hover:scale-110 active:scale-95',
+                                isPlaceholder && 'text-muted-foreground/70'
+                              )}
+                              aria-label={`Mood check-in for ${dateStr}`}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Energy row */}
+                    <div className="flex items-center gap-1">
+                      <div className="w-32 pr-2 truncate text-xs font-medium text-muted-foreground">Energy</div>
+                      <div className="flex gap-1">
+                        {daysInMonth.map((d) => {
+                          const dateStr = format(d, 'yyyy-MM-dd');
+                          const entry = moodEntryByDate.get(dateStr);
+                          const emoji = entry ? energyToEmoji(entry.energy) : '·';
+                          const isPlaceholder = emoji === '·';
+                          return (
+                            <button
+                              key={`energy-${dateStr}`}
+                              type="button"
+                              onClick={() => openCheckIn(dateStr)}
+                              className={cn(
+                                'w-6 h-6 rounded-sm border border-border/50 flex items-center justify-center text-[11px] transition-transform',
+                                'hover:scale-110 active:scale-95',
+                                isPlaceholder && 'text-muted-foreground/70'
+                              )}
+                              aria-label={`Energy check-in for ${dateStr}`}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 }
               />
             </CardContent>
@@ -409,6 +500,14 @@ export default function MonthView() {
             })()}
           </div>
         )}
+
+        <DayCheckInDialog
+          open={checkInOpen}
+          onOpenChange={setCheckInOpen}
+          date={checkInDate}
+          existing={moodEntryByDate.get(checkInDate) ?? null}
+          onChange={(next) => moodUpsertMutation.mutate(next)}
+        />
       </div>
     </Layout>
   );

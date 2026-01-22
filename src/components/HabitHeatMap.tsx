@@ -20,12 +20,14 @@ interface HabitHeatMapProps {
   habits: Habit[];
   logs: HabitLog[];
   onToggle: (habitId: string, date: string, completed: boolean) => void;
+  onDayClick?: (date: string) => void;
+  bottomRows?: React.ReactNode;
   days?: number;
   startDate?: Date;
   endDate?: Date;
 }
 
-export default function HabitHeatMap({ habits, logs, onToggle, days = 30, startDate, endDate }: HabitHeatMapProps) {
+export default function HabitHeatMap({ habits, logs, onToggle, onDayClick, bottomRows, days = 30, startDate, endDate }: HabitHeatMapProps) {
   const dateRange = useMemo(() => {
     if (startDate && endDate) {
       return eachDayOfInterval({ start: startDate, end: endDate });
@@ -81,6 +83,7 @@ export default function HabitHeatMap({ habits, logs, onToggle, days = 30, startD
     const dateStr = format(date, 'yyyy-MM-dd');
     const isCompleted = logMap.get(`${habitId}-${dateStr}`);
     onToggle(habitId, dateStr, !isCompleted);
+    onDayClick?.(dateStr);
   };
 
   return (
@@ -149,6 +152,8 @@ export default function HabitHeatMap({ habits, logs, onToggle, days = 30, startD
               </div>
             </div>
           ))}
+
+          {bottomRows}
 
           {/* Legend */}
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">

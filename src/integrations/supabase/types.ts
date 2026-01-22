@@ -133,6 +133,42 @@ export type Database = {
         }
         Relationships: []
       }
+      mood_entries: {
+        Row: {
+          created_at: string
+          date: string
+          emotion: string | null
+          energy: number
+          id: string
+          intensity: number
+          mood_emoji: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          emotion?: string | null
+          energy?: number
+          id?: string
+          intensity?: number
+          mood_emoji?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          emotion?: string | null
+          energy?: number
+          id?: string
+          intensity?: number
+          mood_emoji?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       project_tasks: {
         Row: {
           completed_at: string | null

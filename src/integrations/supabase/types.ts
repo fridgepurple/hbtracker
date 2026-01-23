@@ -137,33 +137,71 @@ export type Database = {
         Row: {
           created_at: string
           date: string
-          emotion: string | null
           energy: number
           id: string
           intensity: number
-          mood_emoji: string | null
+          mood_option_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           date: string
-          emotion?: string | null
           energy?: number
           id?: string
           intensity?: number
-          mood_emoji?: string | null
+          mood_option_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           date?: string
-          emotion?: string | null
           energy?: number
           id?: string
           intensity?: number
-          mood_emoji?: string | null
+          mood_option_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mood_entries_mood_option_id_fkey"
+            columns: ["mood_option_id"]
+            isOneToOne: false
+            referencedRelation: "mood_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mood_options: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
           updated_at?: string
           user_id?: string
         }

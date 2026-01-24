@@ -93,21 +93,6 @@ export default function DayCheckInDialog({ open, onOpenChange, date, moodOptions
             )}
           </section>
 
-          {/* Temperature slider */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">Temperature</div>
-              <div className="text-xs text-muted-foreground">{intensity}/10</div>
-            </div>
-            <Slider
-              value={[intensity]}
-              min={0}
-              max={10}
-              step={1}
-              disabled={!selectedOptionId}
-              onValueChange={(v) => setIntensity(v[0] ?? 5)}
-            />
-          </section>
 
           {/* Energy slider */}
           <section className="space-y-2">

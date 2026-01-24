@@ -93,20 +93,6 @@ export default function MoodCheckInCard() {
           {/* Sliders (only visible after mood selected) */}
           {todayEntry && (
             <div className="space-y-3">
-              {/* Temperature */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Temperature</span>
-                  <span>{todayEntry.intensity}/10</span>
-                </div>
-                <Slider
-                  value={[todayEntry.intensity]}
-                  min={0}
-                  max={10}
-                  step={1}
-                  onValueChange={(v) => handleSliderChange('intensity', v[0] ?? 5)}
-                />
-              </div>
               {/* Energy */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">

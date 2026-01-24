@@ -4,81 +4,59 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { MoodEmotion, MoodEntry } from '@/lib/moodQueries';
+import type { MoodOption, MoodEntry } from '@/lib/moodQueries';
 
-const MOOD_OPTIONS: Array<{ emoji: string; emotion: MoodEmotion; label: string }> = [
-  { emoji: '😞', emotion: 'sad', label: 'Sad' },
-  { emoji: '😐', emotion: 'neutral', label: 'Neutral' },
-  { emoji: '🙂', emotion: 'happy', label: 'Happy' },
-  { emoji: '😠', emotion: 'angry', label: 'Angry' },
-];
-
+/** Map energy 0-10 to an emoji for quick display */
 export function energyToEmoji(energy: number) {
   if (energy <= 2) return '🪫';
   if (energy <= 5) return '🔋';
   if (energy <= 8) return '⚡';
-  return '⚡⚡';
-}
-
-export function emotionToEmoji(emotion: MoodEmotion | null | undefined) {
-  if (!emotion) return null;
-  return MOOD_OPTIONS.find((o) => o.emotion === emotion)?.emoji ?? null;
+  return '🔥';
 }
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: string; // yyyy-mm-dd
-  existing?: MoodEntry | null;
-  onChange: (next: { date: string; mood_emoji: string | null; emotion: MoodEmotion | null; intensity: number; energy: number }) => void;
+  moodOptions: MoodOption[];
+  existing?: (MoodEntry & { emoji: string; label: string }) | null;
+  onChange: (next: { date: string; mood_option_id: string; intensity: number; energy: number }) => void;
 };
 
-export default function DayCheckInDialog({ open, onOpenChange, date, existing, onChange }: Props) {
-  const initial = useMemo(() => {
-    return {
-      mood_emoji: existing?.mood_emoji ?? emotionToEmoji(existing?.emotion) ?? null,
-      emotion: existing?.emotion ?? (existing?.mood_emoji ? (MOOD_OPTIONS.find(o => o.emoji === existing.mood_emoji)?.emotion ?? null) : null),
-      intensity: typeof existing?.intensity === 'number' ? existing!.intensity : 0,
-      energy: typeof existing?.energy === 'number' ? existing!.energy : 0,
-    };
-  }, [existing]);
+export default function DayCheckInDialog({ open, onOpenChange, date, moodOptions, existing, onChange }: Props) {
+  const initial = useMemo(() => ({
+    mood_option_id: existing?.mood_option_id ?? null,
+    intensity: typeof existing?.intensity === 'number' ? existing.intensity : 5,
+    energy: typeof existing?.energy === 'number' ? existing.energy : 5,
+  }), [existing]);
 
-  const [mood, setMood] = useState<{ mood_emoji: string | null; emotion: MoodEmotion | null }>(() => ({
-    mood_emoji: initial.mood_emoji,
-    emotion: initial.emotion,
-  }));
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(initial.mood_option_id);
   const [intensity, setIntensity] = useState<number>(initial.intensity);
   const [energy, setEnergy] = useState<number>(initial.energy);
 
-  // Sync when switching dates
+  // Sync when date/existing changes
   useEffect(() => {
-    setMood({ mood_emoji: initial.mood_emoji, emotion: initial.emotion });
+    setSelectedOptionId(initial.mood_option_id);
     setIntensity(initial.intensity);
     setEnergy(initial.energy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, existing?.id]);
 
-  // Autosave (debounced)
+  // Autosave on change (debounced) — only when we have a selected mood
   useEffect(() => {
-    if (!open) return;
+    if (!open || !selectedOptionId) return;
     const handle = window.setTimeout(() => {
-      onChange({
-        date,
-        mood_emoji: mood.mood_emoji,
-        emotion: mood.emotion,
-        intensity,
-        energy,
-      });
+      onChange({ date, mood_option_id: selectedOptionId, intensity, energy });
     }, 450);
     return () => window.clearTimeout(handle);
-  }, [open, date, mood.mood_emoji, mood.emotion, intensity, energy, onChange]);
+  }, [open, date, selectedOptionId, intensity, energy, onChange]);
 
-  const setMoodByEmoji = (emoji: string) => {
-    const match = MOOD_OPTIONS.find((o) => o.emoji === emoji);
-    if (!match) return;
-    setMood({ mood_emoji: match.emoji, emotion: match.emotion });
+  const handleSelectMood = (optionId: string) => {
+    setSelectedOptionId(optionId);
     toast.success('Mood updated');
   };
+
+  const selectedOption = moodOptions.find((o) => o.id === selectedOptionId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,26 +67,33 @@ export default function DayCheckInDialog({ open, onOpenChange, date, existing, o
         </DialogHeader>
 
         <div className="space-y-5">
-          {/* Mood */}
+          {/* Mood Grid */}
           <section className="space-y-2">
             <div className="text-sm font-medium">Mood</div>
-            <div className="flex items-center gap-2">
-              {MOOD_OPTIONS.map((opt) => (
+            <div className="grid grid-cols-5 gap-2">
+              {moodOptions.map((opt) => (
                 <Button
-                  key={opt.emotion}
+                  key={opt.id}
                   type="button"
-                  variant={mood.emotion === opt.emotion ? 'default' : 'outline'}
-                  className={cn('h-11 w-11 p-0 text-xl', mood.emotion === opt.emotion && 'ring-2 ring-ring ring-offset-2 ring-offset-background')}
-                  onClick={() => setMoodByEmoji(opt.emoji)}
+                  variant={selectedOptionId === opt.id ? 'default' : 'outline'}
+                  className={cn(
+                    'h-11 w-11 p-0 text-xl',
+                    selectedOptionId === opt.id && 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+                  )}
+                  onClick={() => handleSelectMood(opt.id)}
                   aria-label={opt.label}
+                  title={opt.label}
                 >
                   {opt.emoji}
                 </Button>
               ))}
             </div>
+            {selectedOption && (
+              <p className="text-xs text-muted-foreground mt-1 text-center">{selectedOption.label}</p>
+            )}
           </section>
 
-          {/* Temperature / intensity */}
+          {/* Temperature slider */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Temperature</div>
@@ -119,11 +104,12 @@ export default function DayCheckInDialog({ open, onOpenChange, date, existing, o
               min={0}
               max={10}
               step={1}
-              onValueChange={(v) => setIntensity(v[0] ?? 0)}
+              disabled={!selectedOptionId}
+              onValueChange={(v) => setIntensity(v[0] ?? 5)}
             />
           </section>
 
-          {/* Energy */}
+          {/* Energy slider */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Energy</div>
@@ -137,7 +123,8 @@ export default function DayCheckInDialog({ open, onOpenChange, date, existing, o
               min={0}
               max={10}
               step={1}
-              onValueChange={(v) => setEnergy(v[0] ?? 0)}
+              disabled={!selectedOptionId}
+              onValueChange={(v) => setEnergy(v[0] ?? 5)}
             />
           </section>
         </div>

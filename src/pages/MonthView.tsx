@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import HabitHeatMap from '@/components/HabitHeatMap';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, updateHabit } from '@/lib/habitQueries';
-import { fetchMoodEntries, upsertMoodEntry } from '@/lib/moodQueries';
-import DayCheckInDialog, { energyToEmoji, emotionToEmoji } from '@/components/DayCheckInDialog';
+import { fetchMoodEntries, upsertMoodEntry, ensureMoodOptionsSeeded, MoodOption, MoodEntry } from '@/lib/moodQueries';
+import DayCheckInDialog, { energyToEmoji } from '@/components/DayCheckInDialog';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -142,6 +142,13 @@ export default function MonthView() {
   const { data: logs = [] } = useQuery({
     queryKey: ['habitLogs', format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')],
     queryFn: () => fetchHabitLogs(format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')),
+  });
+
+  // Mood options (seeded once)
+  const { data: moodOptions = [] } = useQuery({
+    queryKey: ['moodOptions'],
+    queryFn: ensureMoodOptionsSeeded,
+    staleTime: Infinity,
   });
 
   const { data: moodEntries = [] } = useQuery({
@@ -283,14 +290,14 @@ export default function MonthView() {
                 onDayClick={(date) => openCheckIn(date)}
                 bottomRows={
                   <div className="mt-3 space-y-1">
-                    {/* Mood row */}
+                    {/* Mood row (emoji only) */}
                     <div className="flex items-center gap-1">
                       <div className="w-32 pr-2 truncate text-xs font-medium text-muted-foreground">Mood</div>
                       <div className="flex gap-1">
                         {daysInMonth.map((d) => {
                           const dateStr = format(d, 'yyyy-MM-dd');
                           const entry = moodEntryByDate.get(dateStr);
-                          const emoji = entry?.mood_emoji ?? emotionToEmoji(entry?.emotion) ?? '·';
+                          const emoji = entry?.emoji ?? '·';
                           const isPlaceholder = emoji === '·';
                           return (
                             <button
@@ -505,6 +512,7 @@ export default function MonthView() {
           open={checkInOpen}
           onOpenChange={setCheckInOpen}
           date={checkInDate}
+          moodOptions={moodOptions}
           existing={moodEntryByDate.get(checkInDate) ?? null}
           onChange={(next) => moodUpsertMutation.mutate(next)}
         />

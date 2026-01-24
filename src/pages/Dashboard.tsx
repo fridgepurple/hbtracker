@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
+import MoodCheckInCard from '@/components/MoodCheckInCard';
 import { fetchHabits, fetchHabitLogs, toggleHabitLog, updateHabit } from '@/lib/habitQueries';
 import { getCategoryColor } from '@/lib/categoryColors';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
@@ -14,7 +15,6 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Sunrise, Sun, Moon, Clock } from 'lucide-react';
-
 interface SortableHabitCardProps {
   habit: any;
   isCompleted: boolean;
@@ -231,6 +231,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Mood Check-in Card */}
+        <MoodCheckInCard />
 
         {/* Habits by Time of Day */}
         {sortedHabits.length === 0 ? (

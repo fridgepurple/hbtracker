@@ -31,10 +31,9 @@ export default function Layout({ children }: LayoutProps) {
   const habitTrackerItems = [
     { path: '/', label: 'Today', icon: Calendar },
     { path: '/month', label: 'Calendar', icon: CalendarRange },
-    { path: '/year', label: 'Year', icon: BarChart3 },
   ];
 
-  const isHabitTrackerActive = ['/', '/month', '/year'].includes(location.pathname);
+  const isHabitTrackerActive = ['/', '/month'].includes(location.pathname);
 
   return (
     <div className="min-h-screen bg-background">

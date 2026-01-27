@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Dashboard from "./pages/Dashboard";
 import MonthView from "./pages/MonthView";
-import YearView from "./pages/YearView";
 import HabitsManagement from "./pages/HabitsManagement";
 import Goals from "./pages/Goals";
 import Auth from "./pages/Auth";
@@ -43,7 +42,6 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/month" element={<ProtectedRoute><MonthView /></ProtectedRoute>} />
-            <Route path="/year" element={<ProtectedRoute><YearView /></ProtectedRoute>} />
             <Route path="/habits" element={<ProtectedRoute><HabitsManagement /></ProtectedRoute>} />
             <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

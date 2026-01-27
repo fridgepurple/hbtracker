@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, startOfYear, endOfYear } from 'date-fns';
 import Layout from '@/components/Layout';
 import HabitCheckbox from '@/components/HabitCheckbox';
 import HabitHeatMap from '@/components/HabitHeatMap';
-import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, updateHabit } from '@/lib/habitQueries';
+import { fetchHabits, fetchHabitLogs, toggleHabitLog, calculateMonthlyProgress, calculateYearlyOverview, updateHabit } from '@/lib/habitQueries';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { fetchMoodEntries, upsertMoodEntry, ensureMoodOptionsSeeded, MoodOption, MoodEntry } from '@/lib/moodQueries';
 import DayCheckInDialog, { energyToEmoji } from '@/components/DayCheckInDialog';
 import { sortHabits, sortOptions, SortOption } from '@/lib/habitSorting';
@@ -515,7 +516,120 @@ export default function MonthView() {
           existing={moodEntryByDate.get(checkInDate) ?? null}
           onChange={(next) => moodUpsertMutation.mutate(next)}
         />
+
+        {/* Year Overview Section */}
+        <YearOverviewSection 
+          habits={habits} 
+          currentYear={currentMonth.getFullYear()} 
+        />
       </div>
     </Layout>
+  );
+}
+
+// Year Overview Component (integrated at bottom)
+function YearOverviewSection({ habits, currentYear }: { habits: any[]; currentYear: number }) {
+  const [selectedHabitId, setSelectedHabitId] = useState<string>('all');
+  
+  const yearStart = startOfYear(new Date(currentYear, 0));
+  const yearEnd = endOfYear(new Date(currentYear, 0));
+
+  const { data: yearLogs = [] } = useQuery({
+    queryKey: ['habitLogs', format(yearStart, 'yyyy-MM-dd'), format(yearEnd, 'yyyy-MM-dd')],
+    queryFn: () => fetchHabitLogs(format(yearStart, 'yyyy-MM-dd'), format(yearEnd, 'yyyy-MM-dd')),
+  });
+
+  const chartData = selectedHabitId === 'all'
+    ? calculateYearlyOverview(habits, currentYear, yearLogs)
+    : Array.from({ length: 12 }, (_, i) => {
+        const progress = calculateMonthlyProgress(selectedHabitId, currentYear, i, yearLogs);
+        return {
+          month: format(new Date(currentYear, i), 'MMM'),
+          percentage: progress
+        };
+      });
+
+  if (habits.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardTitle className="text-xl">
+            {currentYear} Year Overview
+          </CardTitle>
+          <Select value={selectedHabitId} onValueChange={setSelectedHabitId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select habit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Habits (Average)</SelectItem>
+              {habits.map(habit => (
+                <SelectItem key={habit.id} value={habit.id}>
+                  {habit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis 
+              dataKey="month" 
+              className="text-muted-foreground"
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis 
+              domain={[0, 100]}
+              className="text-muted-foreground"
+              tick={{ fontSize: 12 }}
+              label={{ value: 'Completion %', angle: -90, position: 'insideLeft', fontSize: 12 }}
+            />
+            <RechartsTooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '0.5rem'
+              }}
+            />
+            <Legend />
+            <Line 
+              type="monotone" 
+              dataKey="percentage" 
+              stroke="hsl(var(--primary))" 
+              strokeWidth={3}
+              name="Completion %"
+              dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold text-primary">
+              {Math.round(chartData.reduce((sum, d) => sum + d.percentage, 0) / chartData.length)}%
+            </div>
+            <p className="text-xs text-muted-foreground">Avg Completion</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold text-success">
+              {chartData.reduce((max, d) => d.percentage > max.percentage ? d : max, chartData[0])?.month || '-'}
+            </div>
+            <p className="text-xs text-muted-foreground">Best Month</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold">
+              {habits.length}
+            </div>
+            <p className="text-xs text-muted-foreground">Active Habits</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

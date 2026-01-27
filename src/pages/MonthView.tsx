@@ -287,7 +287,6 @@ export default function MonthView() {
                 onToggle={(habitId, date, completed) =>
                   toggleMutation.mutate({ habitId, date, completed })
                 }
-                onDayClick={(date) => openCheckIn(date)}
                 bottomRows={
                   <div className="mt-3 space-y-1">
                     {/* Mood row (emoji only) */}

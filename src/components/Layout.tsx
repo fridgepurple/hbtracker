@@ -96,14 +96,14 @@ export default function Layout({ children }: LayoutProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Goals */}
+            {/* Goals & Projects */}
             <Link to="/goals">
               <Button
                 variant={location.pathname === '/goals' ? 'default' : 'ghost'}
                 className="flex items-center gap-2 whitespace-nowrap"
               >
                 <Target className="h-4 w-4" />
-                <span>Goals</span>
+                <span>Goals & Projects</span>
               </Button>
             </Link>
           </div>

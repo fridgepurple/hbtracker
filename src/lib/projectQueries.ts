@@ -33,7 +33,6 @@ export const fetchProjects = async (): Promise<Project[]> => {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
-    .eq('status', 'active')
     .order('created_at', { ascending: false });
 
   if (error) throw error;

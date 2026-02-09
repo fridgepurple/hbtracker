@@ -377,10 +377,13 @@ export default function Goals() {
     return { label: 'off track', color: 'text-red-600', bgColor: 'bg-red-500', icon: '!' };
   };
 
+  const activeProjects = projects.filter(p => p.status !== 'completed');
+  const completedProjects = projects.filter(p => p.status === 'completed');
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const completedTasks = projectTasks.filter(t => t.status === 'done').length;
   const totalTasks = projectTasks.length;
   const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const isSelectedProjectComplete = selectedProject?.status === 'completed';
 
   // Goal card component
   const GoalCard = ({ type, goals }: { type: GoalType; goals: Goal[] }) => {
@@ -608,7 +611,7 @@ export default function Goals() {
                 </Dialog>
               </div>
 
-              {projects.length === 0 ? (
+              {activeProjects.length === 0 && completedProjects.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center">
                     <FolderKanban className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -616,31 +619,65 @@ export default function Goals() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-2">
-                  {projects.map((project) => {
-                    const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
-                    const CatIcon = catConfig.icon;
-                    const isSelected = selectedProjectId === project.id;
-                    return (
-                      <Card
-                        key={project.id}
-                        className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:border-blue-300'}`}
-                        onClick={() => setSelectedProjectId(project.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${catConfig.bgColor}`}>
-                              <CatIcon className={`h-4 w-4 ${catConfig.color}`} />
+                <div className="space-y-4">
+                  {/* Active Projects */}
+                  <div className="space-y-2">
+                    {activeProjects.map((project) => {
+                      const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
+                      const CatIcon = catConfig.icon;
+                      const isSelected = selectedProjectId === project.id;
+                      return (
+                        <Card
+                          key={project.id}
+                          className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:border-blue-300'}`}
+                          onClick={() => setSelectedProjectId(project.id)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${catConfig.bgColor}`}>
+                                <CatIcon className={`h-4 w-4 ${catConfig.color}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium truncate">{project.name}</h3>
+                                <p className="text-xs text-muted-foreground">{catConfig.label}</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium truncate">{project.name}</h3>
-                              <p className="text-xs text-muted-foreground">{catConfig.label}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+
+                  {/* Completed Projects */}
+                  {completedProjects.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">Completed</p>
+                      {completedProjects.map((project) => {
+                        const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
+                        const CatIcon = catConfig.icon;
+                        const isSelected = selectedProjectId === project.id;
+                        return (
+                          <Card
+                            key={project.id}
+                            className={`cursor-pointer transition-all opacity-60 ${isSelected ? 'ring-2 ring-green-500' : 'hover:border-green-300'}`}
+                            onClick={() => setSelectedProjectId(project.id)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium truncate line-through">{project.name}</h3>
+                                  <p className="text-xs text-muted-foreground">{catConfig.label}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -700,6 +737,21 @@ export default function Goals() {
                             </div>
                           </DialogContent>
                         </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newStatus = isSelectedProjectComplete ? 'active' : 'completed';
+                            updateProject(selectedProject.id, { status: newStatus }).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ['projects'] });
+                              toast.success(newStatus === 'completed' ? 'Project completed!' : 'Project reactivated!');
+                            });
+                          }}
+                          className={isSelectedProjectComplete ? 'text-amber-600 border-amber-300' : 'text-green-600 border-green-300'}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          {isSelectedProjectComplete ? 'Reactivate' : 'Complete'}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

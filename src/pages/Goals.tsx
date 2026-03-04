@@ -169,6 +169,8 @@ export default function Goals() {
   const [selectedEmoji, setSelectedEmoji] = useState('🎯');
   const [selectedCategory, setSelectedCategory] = useState<GoalCategory>('personal');
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(true);
+  const [projectsOpen, setProjectsOpen] = useState(true);
   
   // Projects state
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);

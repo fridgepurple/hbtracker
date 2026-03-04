@@ -511,32 +511,41 @@ export default function Goals() {
     <Layout>
       <div className="space-y-8">
         {/* ── Goals Section ── */}
-        <section className="space-y-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <CalendarRange className="h-5 w-5 text-primary" />
-            Goals
-          </h2>
+        <Collapsible open={goalsOpen} onOpenChange={setGoalsOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between py-2 group">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <CalendarRange className="h-5 w-5 text-primary" />
+                Goals
+              </h2>
+              <ChevronRight className={cn(
+                'h-5 w-5 text-muted-foreground transition-transform duration-200',
+                goalsOpen && 'rotate-90'
+              )} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-6 pt-4">
+            {/* Month Navigator */}
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" size="icon" onClick={navigatePrevious}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h3 className="text-xl font-semibold min-w-[180px] text-center">
+                {format(currentDate, 'MMMM')} <span className="text-muted-foreground">{format(currentDate, 'yyyy')}</span>
+              </h3>
+              <Button variant="outline" size="icon" onClick={navigateNext}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-          {/* Month Navigator */}
-          <div className="flex items-center justify-center gap-3">
-            <Button variant="outline" size="icon" onClick={navigatePrevious}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h3 className="text-xl font-semibold min-w-[180px] text-center">
-              {format(currentDate, 'MMMM')} <span className="text-muted-foreground">{format(currentDate, 'yyyy')}</span>
-            </h3>
-            <Button variant="outline" size="icon" onClick={navigateNext}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Three Goal Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <GoalCard type="daily" goals={dailyGoals} />
-            <GoalCard type="weekly" goals={weeklyGoals} />
-            <GoalCard type="monthly" goals={monthlyGoals} />
-          </div>
-        </section>
+            {/* Three Goal Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <GoalCard type="daily" goals={dailyGoals} />
+              <GoalCard type="weekly" goals={weeklyGoals} />
+              <GoalCard type="monthly" goals={monthlyGoals} />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         <hr className="border-border" />
 

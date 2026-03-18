@@ -80,21 +80,23 @@ const taskStatusConfig = {
   done: { label: 'Done', color: 'bg-green-500', textColor: 'text-green-600' },
 };
 
-// Mini calendar component for each goal type
+const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Calendar component for each goal type — large and readable like Google Calendar
 function MiniCalendar({ type, currentDate }: { type: GoalType; currentDate: Date }) {
   const today = new Date();
   
   if (type === 'daily') {
     return (
-      <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
-        <span className="text-[10px] uppercase font-medium text-rose-600 dark:text-rose-400">
-          {format(currentDate, 'EEE')}
+      <div className="w-full flex flex-col items-center justify-center p-4 rounded-lg bg-rose-500/10 border border-rose-500/20">
+        <span className="text-xs uppercase tracking-wider font-semibold text-rose-600 dark:text-rose-400">
+          {format(currentDate, 'EEEE')}
         </span>
-        <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+        <span className="text-5xl font-bold text-rose-600 dark:text-rose-400 my-1">
           {format(currentDate, 'd')}
         </span>
-        <span className="text-[10px] text-muted-foreground">
-          {format(currentDate, 'MMM')}
+        <span className="text-sm text-muted-foreground">
+          {format(currentDate, 'MMMM yyyy')}
         </span>
       </div>
     );
@@ -103,21 +105,27 @@ function MiniCalendar({ type, currentDate }: { type: GoalType; currentDate: Date
   if (type === 'weekly') {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 1 }) });
+    const weekDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
     return (
-      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <div className="text-[9px] uppercase font-medium text-amber-600 dark:text-amber-400 text-center mb-1">
-          Week {getWeek(currentDate)}
+      <div className="w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+        <div className="text-xs uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 text-center mb-3">
+          Week {getWeek(currentDate)} · {format(weekStart, 'MMM d')} – {format(weekDays[weekDays.length - 1], 'MMM d')}
         </div>
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-7 gap-1">
+          {weekDayLabels.map((label) => (
+            <div key={label} className="text-[10px] font-medium text-muted-foreground text-center pb-1">
+              {label}
+            </div>
+          ))}
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
               className={cn(
-                'w-5 h-5 rounded-sm text-[9px] flex items-center justify-center',
+                'h-9 rounded-md text-sm flex items-center justify-center font-medium transition-colors',
                 isSameDay(day, today)
-                  ? 'bg-amber-500 text-white font-bold'
-                  : 'text-amber-700 dark:text-amber-300'
+                  ? 'bg-amber-500 text-white font-bold shadow-sm'
+                  : 'text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
               )}
             >
               {format(day, 'd')}
@@ -128,32 +136,39 @@ function MiniCalendar({ type, currentDate }: { type: GoalType; currentDate: Date
     );
   }
   
-  // Monthly
+  // Monthly — full calendar grid
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDayOfWeek = monthStart.getDay();
   
   return (
-    <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-      <div className="text-[9px] uppercase font-medium text-purple-600 dark:text-purple-400 text-center mb-1">
-        {format(currentDate, 'MMMM')}
+    <div className="w-full p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+      <div className="text-xs uppercase tracking-wider font-semibold text-purple-600 dark:text-purple-400 text-center mb-3">
+        {format(currentDate, 'MMMM yyyy')}
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-1">
+        {dayLabels.map((label) => (
+          <div key={label} className="text-[10px] font-medium text-muted-foreground text-center pb-1">
+            {label}
+          </div>
+        ))}
         {/* Empty cells for offset */}
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
-          <div key={`empty-${i}`} className="w-3 h-3" />
+          <div key={`empty-${i}`} className="h-7" />
         ))}
-        {daysInMonth.slice(0, 28).map((day) => (
+        {daysInMonth.map((day) => (
           <div
             key={day.toISOString()}
             className={cn(
-              'w-3 h-3 rounded-[2px] text-[6px] flex items-center justify-center',
+              'h-7 rounded-md text-xs flex items-center justify-center font-medium transition-colors',
               isSameDay(day, today)
-                ? 'bg-purple-500 text-white'
-                : 'bg-purple-200/50 dark:bg-purple-800/30'
+                ? 'bg-purple-500 text-white font-bold shadow-sm'
+                : 'text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
             )}
-          />
+          >
+            {format(day, 'd')}
+          </div>
         ))}
       </div>
     </div>

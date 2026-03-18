@@ -440,16 +440,6 @@ export default function Goals() {
             </div>
           )}
           <MiniCalendar type={type} currentDate={currentDate} />
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              className={cn('h-7 w-7', config.text)}
-              onClick={() => handleOpenCreateDialog(type)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
         </CardHeader>
         <CardContent className="flex-1 p-3 overflow-auto">
           {goals.length === 0 ? (

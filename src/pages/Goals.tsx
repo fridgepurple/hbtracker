@@ -83,101 +83,104 @@ const taskStatusConfig = {
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Calendar component for each goal type — large and readable like Google Calendar
-function MiniCalendar({ type, currentDate }: { type: GoalType; currentDate: Date }) {
-  const today = new Date();
-  
-  if (type === 'daily') {
-    return (
-      <div className="w-full flex flex-col items-center justify-center p-4 rounded-lg bg-rose-500/10 border border-rose-500/20">
-        <span className="text-xs uppercase tracking-wider font-semibold text-rose-600 dark:text-rose-400">
-          {format(currentDate, 'EEEE')}
-        </span>
-        <span className="text-5xl font-bold text-rose-600 dark:text-rose-400 my-1">
-          {format(currentDate, 'd')}
-        </span>
-        <span className="text-sm text-muted-foreground">
-          {format(currentDate, 'MMMM yyyy')}
-        </span>
-      </div>
-    );
-  }
-  
-  if (type === 'weekly') {
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 1 }) });
-    const weekDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    return (
-      <div className="w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <div className="text-xs uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 text-center mb-3">
-          Week {getWeek(currentDate)} · {format(weekStart, 'MMM d')} – {format(weekDays[weekDays.length - 1], 'MMM d')}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {weekDayLabels.map((label) => (
-            <div key={label} className="text-[10px] font-medium text-muted-foreground text-center pb-1">
-              {label}
-            </div>
-          ))}
-          {weekDays.map((day) => (
-            <div
-              key={day.toISOString()}
-              className={cn(
-                'h-9 rounded-md text-sm flex items-center justify-center font-medium transition-colors',
-                isSameDay(day, today)
-                  ? 'bg-amber-500 text-white font-bold shadow-sm'
-                  : 'text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
-              )}
-            >
-              {format(day, 'd')}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  
-  // Monthly — full calendar grid
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startDayOfWeek = monthStart.getDay();
-  
+// Goal list component used inside each tab
+function GoalList({ goals, type, onAdd, onUpdate, onDelete, getGoalStatus }: {
+  goals: Goal[];
+  type: GoalType;
+  onAdd: () => void;
+  onUpdate: (id: string, updates: Partial<Goal>) => void;
+  onDelete: (id: string) => void;
+  getGoalStatus: (progress: number) => { label: string; color: string; bgColor: string };
+}) {
+  const config = goalTypeConfig[type];
+
   return (
-    <div className="w-full p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-      <div className="text-xs uppercase tracking-wider font-semibold text-purple-600 dark:text-purple-400 text-center mb-3">
-        {format(currentDate, 'MMMM yyyy')}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {type === 'daily' ? 'Today\'s Goals' : type === 'weekly' ? 'This Week\'s Goals' : 'Monthly Goals'}
+        </h4>
+        <Button size="sm" variant="ghost" onClick={onAdd} className="h-7 gap-1 text-xs">
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
       </div>
-      <div className="grid grid-cols-7 gap-1">
-        {dayLabels.map((label) => (
-          <div key={label} className="text-[10px] font-medium text-muted-foreground text-center pb-1">
-            {label}
-          </div>
-        ))}
-        {/* Empty cells for offset */}
-        {Array.from({ length: startDayOfWeek }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-7" />
-        ))}
-        {daysInMonth.map((day) => (
-          <div
-            key={day.toISOString()}
-            className={cn(
-              'h-7 rounded-md text-xs flex items-center justify-center font-medium transition-colors',
-              isSameDay(day, today)
-                ? 'bg-purple-500 text-white font-bold shadow-sm'
-                : 'text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
-            )}
-          >
-            {format(day, 'd')}
-          </div>
-        ))}
-      </div>
+      {goals.length === 0 ? (
+        <div className="py-8 text-center border border-dashed border-border rounded-lg">
+          <p className="text-sm text-muted-foreground">No goals yet</p>
+          <Button variant="link" size="sm" onClick={onAdd} className="mt-1 text-xs">
+            Create your first goal
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {goals.map((goal) => {
+            const goalStatus = getGoalStatus(goal.progress);
+            const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
+            return (
+              <div
+                key={goal.id}
+                className="p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    checked={goal.completed}
+                    onCheckedChange={(checked) =>
+                      onUpdate(goal.id, { completed: checked as boolean })
+                    }
+                    className={cn('mt-0.5', config.checkbox)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className={cn('text-[9px] px-1 py-0', catConfig.bgColor, catConfig.color)}>
+                        {catConfig.label}
+                      </Badge>
+                    </div>
+                    <p className={cn(
+                      'text-sm font-medium mt-1',
+                      goal.completed && 'line-through text-muted-foreground'
+                    )}>
+                      {goal.title}
+                    </p>
+                    {!goal.completed && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className={goalStatus.color}>{goalStatus.label}</span>
+                          <span className="text-muted-foreground">{goal.progress}%</span>
+                        </div>
+                        <Slider
+                          value={[goal.progress]}
+                          onValueChange={([value]) =>
+                            onUpdate(goal.id, { progress: value })
+                          }
+                          max={100}
+                          step={5}
+                          className={cn('h-1', config.slider)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(goal.id)}
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 export default function Goals() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<GoalType>('monthly');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createGoalType, setCreateGoalType] = useState<GoalType>('monthly');
   const [newGoalTitle, setNewGoalTitle] = useState('');
@@ -219,6 +222,12 @@ export default function Goals() {
   const { data: monthlyGoals = [] } = useQuery({
     queryKey: ['goals', currentYear, currentMonth, 'monthly', undefined, undefined],
     queryFn: () => fetchGoals(currentYear, currentMonth, 'monthly', undefined, undefined),
+  });
+
+  // Fetch all goals for the month (for calendar dots)
+  const { data: allMonthGoals = [] } = useQuery({
+    queryKey: ['goals', currentYear, currentMonth, 'all'],
+    queryFn: () => fetchAllGoalsForMonth(currentYear, currentMonth),
   });
 
   // Projects queries
@@ -404,121 +413,43 @@ export default function Goals() {
   const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const isSelectedProjectComplete = selectedProject?.status === 'completed';
 
-  // Goal card component
-  const GoalCard = ({ type, goals }: { type: GoalType; goals: Goal[] }) => {
-    const config = goalTypeConfig[type];
-    const Icon = config.icon;
-    const completedGoals = goals.filter(g => g.completed).length;
-    const totalGoals = goals.length;
-    const overallProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
-    const status = getGoalStatus(overallProgress);
+  // Build the big calendar
+  const today = new Date();
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startDayOfWeek = monthStart.getDay();
 
-    return (
-      <Card className={cn('h-full flex flex-col', config.border)}>
-        <CardHeader className={cn('bg-gradient-to-br rounded-t-lg space-y-3', config.color)}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Icon className={cn('h-4 w-4', config.text)} />
-              <CardTitle className={cn('text-base', config.text)}>{config.label}</CardTitle>
-            </div>
-            <div className="flex items-center gap-2">
-              {totalGoals > 0 && (
-                <span className={cn('text-xs font-medium', status.color)}>{status.label} · {completedGoals}/{totalGoals}</span>
-              )}
-              <Button
-                size="icon"
-                variant="ghost"
-                className={cn('h-7 w-7', config.text)}
-                onClick={() => handleOpenCreateDialog(type)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          {totalGoals > 0 && (
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className={cn('h-full transition-all', status.bgColor)} style={{ width: `${overallProgress}%` }} />
-            </div>
-          )}
-          <MiniCalendar type={type} currentDate={currentDate} />
-        </CardHeader>
-        <CardContent className="flex-1 p-3 overflow-auto">
-          {goals.length === 0 ? (
-            <div className="h-full flex items-center justify-center py-6">
-              <p className="text-sm text-muted-foreground text-center">
-                No goals yet
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {goals.map((goal) => {
-                const goalStatus = getGoalStatus(goal.progress);
-                const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
-                return (
-                  <div
-                    key={goal.id}
-                    className={cn(
-                      'p-3 rounded-lg border transition-colors',
-                      config.border,
-                      'hover:bg-muted/30'
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={goal.completed}
-                        onCheckedChange={(checked) =>
-                          updateGoalMutation.mutate({ id: goal.id, updates: { completed: checked as boolean } })
-                        }
-                        className={cn('mt-0.5', config.checkbox)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className={cn('text-[9px] px-1 py-0', catConfig.bgColor, catConfig.color)}>
-                            {catConfig.label}
-                          </Badge>
-                        </div>
-                        <p className={cn(
-                          'text-sm font-medium mt-1',
-                          goal.completed && 'line-through text-muted-foreground'
-                        )}>
-                          {goal.title}
-                        </p>
-                        {!goal.completed && (
-                          <div className="mt-2 space-y-1">
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className={goalStatus.color}>{goalStatus.label}</span>
-                              <span className="text-muted-foreground">{goal.progress}%</span>
-                            </div>
-                            <Slider
-                              value={[goal.progress]}
-                              onValueChange={([value]) =>
-                                updateGoalMutation.mutate({ id: goal.id, updates: { progress: value } })
-                              }
-                              max={100}
-                              step={5}
-                              className={cn('h-1', config.slider)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteGoalMutation.mutate(goal.id)}
-                        className="h-6 w-6 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
+  // Build weekly calendar
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 1 }) });
+
+  // Map of days that have goals
+  const goalsByDay = useMemo(() => {
+    const map = new Map<number, Goal[]>();
+    allMonthGoals.forEach(g => {
+      if (g.day) {
+        const existing = map.get(g.day) || [];
+        existing.push(g);
+        map.set(g.day, existing);
+      }
+    });
+    return map;
+  }, [allMonthGoals]);
+
+  const handleGoalUpdate = (id: string, updates: Partial<Goal>) => {
+    updateGoalMutation.mutate({ id, updates });
   };
+
+  const handleGoalDelete = (id: string) => {
+    deleteGoalMutation.mutate(id);
+  };
+
+  // Get goals for current tab
+  const currentGoals = activeTab === 'daily' ? dailyGoals : activeTab === 'weekly' ? weeklyGoals : monthlyGoals;
+  const completedGoalsCount = currentGoals.filter(g => g.completed).length;
+  const totalGoalsCount = currentGoals.length;
+  const overallProgress = totalGoalsCount > 0 ? Math.round((completedGoalsCount / totalGoalsCount) * 100) : 0;
 
   return (
     <Layout>
@@ -537,25 +468,178 @@ export default function Goals() {
               )} />
             </button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-6 pt-4">
+          <CollapsibleContent className="pt-4">
             {/* Month Navigator */}
-            <div className="flex items-center justify-center gap-3">
-              <Button variant="outline" size="icon" onClick={navigatePrevious}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h3 className="text-xl font-semibold min-w-[180px] text-center">
-                {format(currentDate, 'MMMM')} <span className="text-muted-foreground">{format(currentDate, 'yyyy')}</span>
-              </h3>
-              <Button variant="outline" size="icon" onClick={navigateNext}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={navigatePrevious}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h3 className="text-xl font-semibold">
+                  {format(currentDate, 'MMMM')} <span className="text-muted-foreground">{format(currentDate, 'yyyy')}</span>
+                </h3>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={navigateNext}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              {totalGoalsCount > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">{completedGoalsCount}/{totalGoalsCount} done</span>
+                  <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all rounded-full" style={{ width: `${overallProgress}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Three Goal Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <GoalCard type="daily" goals={dailyGoals} />
-              <GoalCard type="weekly" goals={weeklyGoals} />
-              <GoalCard type="monthly" goals={monthlyGoals} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* ── Big Calendar Panel ── */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardContent className="p-4 md:p-6">
+                    {/* Monthly Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-0">
+                      {/* Day headers */}
+                      {dayLabels.map((label) => (
+                        <div key={label} className="py-2 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                          {label}
+                        </div>
+                      ))}
+                      {/* Empty cells for offset */}
+                      {Array.from({ length: startDayOfWeek }).map((_, i) => (
+                        <div key={`empty-${i}`} className="min-h-[80px] md:min-h-[100px] border-b border-r border-border last:border-r-0" />
+                      ))}
+                      {/* Day cells */}
+                      {daysInMonth.map((day) => {
+                        const dayNum = getDate(day);
+                        const isToday = isSameDay(day, today);
+                        const dayGoals = goalsByDay.get(dayNum) || [];
+                        const isCurrentWeek = weekDays.some(wd => isSameDay(wd, day));
+                        const isSelected = isSameDay(day, currentDate);
+                        
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            onClick={() => setCurrentDate(day)}
+                            className={cn(
+                              'min-h-[80px] md:min-h-[100px] p-1.5 border-b border-r border-border cursor-pointer transition-colors',
+                              isSelected && 'bg-primary/5',
+                              activeTab === 'weekly' && isCurrentWeek && 'bg-accent/10',
+                              !isSelected && !isCurrentWeek && 'hover:bg-muted/30'
+                            )}
+                          >
+                            <div className={cn(
+                              'h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium mb-1',
+                              isToday && 'bg-primary text-primary-foreground',
+                              isSelected && !isToday && 'ring-2 ring-primary'
+                            )}>
+                              {dayNum}
+                            </div>
+                            {/* Goal dots */}
+                            {dayGoals.length > 0 && (
+                              <div className="space-y-0.5">
+                                {dayGoals.slice(0, 3).map((g) => (
+                                  <div
+                                    key={g.id}
+                                    className={cn(
+                                      'text-[10px] leading-tight px-1 py-0.5 rounded truncate',
+                                      g.completed ? 'bg-success/20 text-success-foreground line-through opacity-60' : 'bg-primary/10 text-foreground'
+                                    )}
+                                  >
+                                    {g.title}
+                                  </div>
+                                ))}
+                                {dayGoals.length > 3 && (
+                                  <span className="text-[9px] text-muted-foreground pl-1">+{dayGoals.length - 3} more</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ── Goals Sidebar with Tabs ── */}
+              <div>
+                <Card className="h-full">
+                  <CardContent className="p-4">
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as GoalType)}>
+                      <TabsList className="w-full grid grid-cols-3 mb-4">
+                        <TabsTrigger value="daily" className="text-xs gap-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          Day
+                        </TabsTrigger>
+                        <TabsTrigger value="weekly" className="text-xs gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          Week
+                        </TabsTrigger>
+                        <TabsTrigger value="monthly" className="text-xs gap-1">
+                          <CalendarRange className="h-3.5 w-3.5" />
+                          Month
+                        </TabsTrigger>
+                      </TabsList>
+
+                      {/* Date context */}
+                      <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border">
+                        {activeTab === 'daily' && (
+                          <div className="text-center">
+                            <p className="text-2xl font-bold">{format(currentDate, 'd')}</p>
+                            <p className="text-xs text-muted-foreground">{format(currentDate, 'EEEE, MMMM yyyy')}</p>
+                          </div>
+                        )}
+                        {activeTab === 'weekly' && (
+                          <div className="text-center">
+                            <p className="text-sm font-semibold">Week {currentWeek}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(weekStart, 'MMM d')} – {format(weekDays[weekDays.length - 1], 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                        )}
+                        {activeTab === 'monthly' && (
+                          <div className="text-center">
+                            <p className="text-sm font-semibold">{format(currentDate, 'MMMM yyyy')}</p>
+                            <p className="text-xs text-muted-foreground">{daysInMonth.length} days</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <TabsContent value="daily" className="mt-0">
+                        <GoalList
+                          goals={dailyGoals}
+                          type="daily"
+                          onAdd={() => handleOpenCreateDialog('daily')}
+                          onUpdate={handleGoalUpdate}
+                          onDelete={handleGoalDelete}
+                          getGoalStatus={getGoalStatus}
+                        />
+                      </TabsContent>
+                      <TabsContent value="weekly" className="mt-0">
+                        <GoalList
+                          goals={weeklyGoals}
+                          type="weekly"
+                          onAdd={() => handleOpenCreateDialog('weekly')}
+                          onUpdate={handleGoalUpdate}
+                          onDelete={handleGoalDelete}
+                          getGoalStatus={getGoalStatus}
+                        />
+                      </TabsContent>
+                      <TabsContent value="monthly" className="mt-0">
+                        <GoalList
+                          goals={monthlyGoals}
+                          type="monthly"
+                          onAdd={() => handleOpenCreateDialog('monthly')}
+                          onUpdate={handleGoalUpdate}
+                          onDelete={handleGoalDelete}
+                          getGoalStatus={getGoalStatus}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>

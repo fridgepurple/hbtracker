@@ -414,25 +414,32 @@ export default function Goals() {
 
     return (
       <Card className={cn('h-full flex flex-col', config.border)}>
-        <CardHeader className={cn('bg-gradient-to-br rounded-t-lg', config.color)}>
-          <div className="flex items-start justify-between gap-3">
-            <MiniCalendar type={type} currentDate={currentDate} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Icon className={cn('h-4 w-4', config.text)} />
-                <CardTitle className={cn('text-base', config.text)}>{config.label}</CardTitle>
-              </div>
+        <CardHeader className={cn('bg-gradient-to-br rounded-t-lg space-y-3', config.color)}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon className={cn('h-4 w-4', config.text)} />
+              <CardTitle className={cn('text-base', config.text)}>{config.label}</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
               {totalGoals > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={cn('font-medium', status.color)}>{status.label}</span>
-                    <span className="text-muted-foreground">{completedGoals}/{totalGoals}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className={cn('h-full transition-all', status.bgColor)} style={{ width: `${overallProgress}%` }} />
-                  </div>
-                </div>
+                <span className={cn('text-xs font-medium', status.color)}>{status.label} · {completedGoals}/{totalGoals}</span>
               )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn('h-7 w-7', config.text)}
+                onClick={() => handleOpenCreateDialog(type)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          {totalGoals > 0 && (
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className={cn('h-full transition-all', status.bgColor)} style={{ width: `${overallProgress}%` }} />
+            </div>
+          )}
+          <MiniCalendar type={type} currentDate={currentDate} />
             </div>
             <Button
               size="icon"

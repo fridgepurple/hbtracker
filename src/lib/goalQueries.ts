@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type GoalType = 'daily' | 'weekly' | 'monthly';
 
-export type GoalCategory = 'home' | 'finance' | 'work' | 'school' | 'personal';
+export type GoalCategory = 'home' | 'finance' | 'work' | 'school' | 'personal' | 'travel';
 
 export interface Goal {
   id: string;

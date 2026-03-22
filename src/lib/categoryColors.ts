@@ -27,6 +27,7 @@ export const categoryColors: Record<string, { bg: string; text: string }> = {
   'finances': { bg: 'bg-green-500/20', text: 'text-green-400' },
   'personal growth': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   'personal': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'travel': { bg: 'bg-sky-500/20', text: 'text-sky-400' },
 };
 
 export function getCategoryColor(category: string): { bg: string; text: string } {

@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type ProjectCategory = 'home' | 'finance' | 'work' | 'school' | 'personal';
+export type ProjectCategory = 'home' | 'finance' | 'work' | 'school' | 'personal' | 'travel';
 
 export interface Project {
   id: string;

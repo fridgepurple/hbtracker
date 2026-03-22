@@ -73,6 +73,7 @@ const categoryConfig: Record<GoalCategory, { icon: typeof Home; label: string; c
   work: { icon: Briefcase, label: 'Work', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
   school: { icon: GraduationCap, label: 'School', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
   personal: { icon: Heart, label: 'Personal / Wellness', color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30' },
+  travel: { icon: Plane, label: 'Travel', color: 'text-sky-600', bgColor: 'bg-sky-100 dark:bg-sky-900/30' },
 };
 
 const taskStatusConfig = {

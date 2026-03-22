@@ -244,6 +244,12 @@ export default function Goals() {
     enabled: !!selectedProjectId,
   });
 
+  // Fetch all tasks across all projects for the card view
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ['all_project_tasks'],
+    queryFn: fetchAllTasks,
+  });
+
   // Goals mutations
   const createGoalMutation = useMutation({
     mutationFn: createGoal,

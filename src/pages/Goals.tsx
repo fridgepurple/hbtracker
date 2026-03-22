@@ -182,6 +182,7 @@ export default function Goals() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<GoalType>('monthly');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [calendarPopoverDay, setCalendarPopoverDay] = useState<Date | null>(null);
   const [createGoalType, setCreateGoalType] = useState<GoalType>('monthly');
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDescription, setNewGoalDescription] = useState('');

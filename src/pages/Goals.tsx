@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addMonths, getWeek, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDate, addDays, subDays } from 'date-fns';
+import { format, addMonths, getWeek, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDate, addDays, subDays, isToday as isDateToday } from 'date-fns';
 import Layout from '@/components/Layout';
 import { fetchGoals, fetchAllGoalsForMonth, createGoal, updateGoal, deleteGoal, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
 import { 
-  fetchProjects, fetchProjectTasks, createProject, updateProject, deleteProject,
+  fetchProjects, fetchProjectTasks, fetchAllTasks, createProject, updateProject, deleteProject,
   createTask, updateTask, deleteTask, Project, ProjectTask 
 } from '@/lib/projectQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

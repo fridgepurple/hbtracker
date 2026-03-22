@@ -459,10 +459,61 @@ export default function Goals() {
   const totalGoalsCount = currentGoals.length;
   const overallProgress = totalGoalsCount > 0 ? Math.round((completedGoalsCount / totalGoalsCount) * 100) : 0;
 
+  // Today's reminders - incomplete goals for today
+  const todayReminders = useMemo(() => {
+    const reminders: { goal: Goal; type: string }[] = [];
+    dailyGoals.filter(g => !g.completed).forEach(g => reminders.push({ goal: g, type: 'Today' }));
+    weeklyGoals.filter(g => !g.completed).forEach(g => reminders.push({ goal: g, type: 'This Week' }));
+    monthlyGoals.filter(g => !g.completed).slice(0, 3).forEach(g => reminders.push({ goal: g, type: 'This Month' }));
+    return reminders;
+  }, [dailyGoals, weeklyGoals, monthlyGoals]);
+
+  // Group tasks by status for card view
+  const todoTasks = useMemo(() => allTasks.filter(t => t.status === 'todo' || !t.status), [allTasks]);
+  const inProgressTasks = useMemo(() => allTasks.filter(t => t.status === 'in_progress'), [allTasks]);
+  const doneTasks = useMemo(() => allTasks.filter(t => t.status === 'done'), [allTasks]);
+
+  // Map project IDs to project names/categories
+  const projectMap = useMemo(() => {
+    const map = new Map<string, Project>();
+    projects.forEach(p => map.set(p.id, p));
+    return map;
+  }, [projects]);
+
   return (
     <Layout>
       <div className="space-y-8">
-        {/* ── Goals Section ── */}
+        {/* ── Today's Reminders ── */}
+        {todayReminders.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              ✨ Don't forget today
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {todayReminders.map(({ goal, type }) => {
+                const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
+                const goalStatus = getGoalStatus(goal.progress);
+                return (
+                  <div
+                    key={goal.id}
+                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0', catConfig.bgColor, catConfig.color)}>
+                        {type}
+                      </Badge>
+                      <span className={cn('text-[9px] font-medium', goalStatus.color)}>{goalStatus.label}</span>
+                    </div>
+                    <p className="text-sm font-medium leading-snug">{goal.title}</p>
+                    <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-primary transition-all rounded-full" style={{ width: `${goal.progress}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <Collapsible open={goalsOpen} onOpenChange={setGoalsOpen}>
           <CollapsibleTrigger asChild>
             <button className="w-full flex items-center justify-between py-2 group">

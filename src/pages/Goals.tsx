@@ -770,13 +770,13 @@ export default function Goals() {
 
         <hr className="border-border" />
 
-        {/* ── Projects Section ── */}
+        {/* ── Projects & Tasks Section ── */}
         <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
           <CollapsibleTrigger asChild>
             <button className="w-full flex items-center justify-between py-2 group">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <FolderKanban className="h-5 w-5 text-primary" />
-                Projects
+                Projects & Tasks
               </h2>
               <ChevronRight className={cn(
                 'h-5 w-5 text-muted-foreground transition-transform duration-200',
@@ -785,314 +785,302 @@ export default function Goals() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-6 pt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Projects List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">All Projects</h3>
-                  <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                        <Plus className="h-4 w-4 mr-1" />
-                        New
+            {/* Project Tabs / Lists */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant={!selectedProjectId ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedProjectId(null)}
+                  className="text-xs"
+                >
+                  All Tasks
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1">{allTasks.filter(t => t.status !== 'done').length}</Badge>
+                </Button>
+                {activeProjects.map((project) => {
+                  const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
+                  return (
+                    <Button
+                      key={project.id}
+                      variant={selectedProjectId === project.id ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedProjectId(project.id)}
+                      className="text-xs gap-1.5"
+                    >
+                      <catConfig.icon className={cn('h-3.5 w-3.5', selectedProjectId === project.id ? '' : catConfig.color)} />
+                      {project.name}
+                    </Button>
+                  );
+                })}
+                {completedProjects.length > 0 && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-xs text-muted-foreground">
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Completed ({completedProjects.length})
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create Project</DialogTitle>
-                        <DialogDescription>Add a new project to organize your tasks</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Category</label>
-                          <Select value={newProjectCategory} onValueChange={(v) => setNewProjectCategory(v as GoalCategory)}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(categoryConfig).map(([key, { icon: CatIcon, label, color }]) => (
-                                <SelectItem key={key} value={key}>
-                                  <div className="flex items-center gap-2">
-                                    <CatIcon className={`h-4 w-4 ${color}`} />
-                                    <span>{label}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Project Name</label>
-                          <Input
-                            value={newProjectName}
-                            onChange={(e) => setNewProjectName(e.target.value)}
-                            placeholder="e.g., Home Renovation"
-                            maxLength={100}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Description (optional)</label>
-                          <Textarea
-                            value={newProjectDescription}
-                            onChange={(e) => setNewProjectDescription(e.target.value)}
-                            placeholder="What is this project about?"
-                            maxLength={500}
-                          />
-                        </div>
-                        <div className="flex gap-3">
-                          <Button variant="outline" onClick={() => setIsCreateProjectDialogOpen(false)} className="flex-1">
-                            Cancel
-                          </Button>
-                          <Button onClick={handleCreateProject} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!newProjectName.trim()}>
-                            Create
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-
-                {activeProjects.length === 0 && completedProjects.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-center">
-                      <FolderKanban className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">No projects yet</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Active Projects */}
-                    <div className="space-y-2">
-                      {activeProjects.map((project) => {
-                        const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
-                        const CatIcon = catConfig.icon;
-                        const isSelected = selectedProjectId === project.id;
-                        return (
-                          <Card
-                            key={project.id}
-                            className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:border-blue-300'}`}
-                            onClick={() => setSelectedProjectId(project.id)}
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${catConfig.bgColor}`}>
-                                  <CatIcon className={`h-4 w-4 ${catConfig.color}`} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-medium truncate">{project.name}</h3>
-                                  <p className="text-xs text-muted-foreground">{catConfig.label}</p>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-
-                    {/* Completed Projects */}
-                    {completedProjects.length > 0 && (
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2">
+                      {completedProjects.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted/50 text-muted-foreground line-through"
+                          onClick={() => setSelectedProjectId(p.id)}
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="text-xs">
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      New Project
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create Project</DialogTitle>
+                      <DialogDescription>Add a new project to organize your tasks</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
                       <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">Completed</p>
-                        {completedProjects.map((project) => {
-                          const catConfig = categoryConfig[(project.category as GoalCategory) || 'work'];
-                          const CatIcon = catConfig.icon;
-                          const isSelected = selectedProjectId === project.id;
-                          return (
-                            <Card
-                              key={project.id}
-                              className={`cursor-pointer transition-all opacity-60 ${isSelected ? 'ring-2 ring-green-500' : 'hover:border-green-300'}`}
-                              onClick={() => setSelectedProjectId(project.id)}
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium truncate line-through">{project.name}</h3>
-                                    <p className="text-xs text-muted-foreground">{catConfig.label}</p>
-                                  </div>
+                        <label className="text-sm font-medium">Category</label>
+                        <Select value={newProjectCategory} onValueChange={(v) => setNewProjectCategory(v as GoalCategory)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(categoryConfig).map(([key, { icon: CatIcon, label, color }]) => (
+                              <SelectItem key={key} value={key}>
+                                <div className="flex items-center gap-2">
+                                  <CatIcon className={`h-4 w-4 ${color}`} />
+                                  <span>{label}</span>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Project Name</label>
+                        <Input
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          placeholder="e.g., Paris Trip Planning"
+                          maxLength={100}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Description (optional)</label>
+                        <Textarea
+                          value={newProjectDescription}
+                          onChange={(e) => setNewProjectDescription(e.target.value)}
+                          placeholder="What is this project about?"
+                          maxLength={500}
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => setIsCreateProjectDialogOpen(false)} className="flex-1">
+                          Cancel
+                        </Button>
+                        <Button onClick={handleCreateProject} className="flex-1" disabled={!newProjectName.trim()}>
+                          Create
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                {selectedProject && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newStatus = isSelectedProjectComplete ? 'active' : 'completed';
+                        updateProject(selectedProject.id, { status: newStatus }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['projects'] });
+                          queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
+                          toast.success(newStatus === 'completed' ? 'Project completed!' : 'Project reactivated!');
+                        });
+                      }}
+                      className="text-xs"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      {isSelectedProjectComplete ? 'Reactivate' : 'Complete'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 )}
               </div>
-
-              {/* Tasks Panel */}
-              <div className="lg:col-span-2">
-                {selectedProject ? (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>{selectedProject.name}</CardTitle>
-                          {selectedProject.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{selectedProject.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add Task
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Add Task</DialogTitle>
-                                <DialogDescription>Add a new task to this project</DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 pt-4">
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium">Task Title</label>
-                                  <Input
-                                    value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    placeholder="e.g., Buy paint supplies"
-                                    maxLength={200}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium">Description (optional)</label>
-                                  <Textarea
-                                    value={newTaskDescription}
-                                    onChange={(e) => setNewTaskDescription(e.target.value)}
-                                    placeholder="Add details..."
-                                    maxLength={500}
-                                  />
-                                </div>
-                                <div className="flex gap-3">
-                                  <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)} className="flex-1">
-                                    Cancel
-                                  </Button>
-                                  <Button onClick={handleCreateTask} className="flex-1 bg-green-600 hover:bg-green-700" disabled={!newTaskTitle.trim()}>
-                                    Add Task
-                                  </Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const newStatus = isSelectedProjectComplete ? 'active' : 'completed';
-                              updateProject(selectedProject.id, { status: newStatus }).then(() => {
-                                queryClient.invalidateQueries({ queryKey: ['projects'] });
-                                toast.success(newStatus === 'completed' ? 'Project completed!' : 'Project reactivated!');
-                              });
-                            }}
-                            className={isSelectedProjectComplete ? 'text-amber-600 border-amber-300' : 'text-green-600 border-green-300'}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            {isSelectedProjectComplete ? 'Reactivate' : 'Complete'}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      {totalTasks > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-medium">{completedTasks}/{totalTasks} tasks done</span>
-                          </div>
-                          <Progress value={taskProgress} className="h-2" />
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      {projectTasks.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <CheckCircle2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">No tasks yet. Add your first task!</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {projectTasks.map((task) => {
-                            const statusConfig = taskStatusConfig[task.status as keyof typeof taskStatusConfig] || taskStatusConfig.todo;
-                            return (
-                              <div key={task.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30">
-                                <Checkbox
-                                  checked={task.status === 'done'}
-                                  onCheckedChange={(checked) => {
-                                    updateTaskMutation.mutate({
-                                      id: task.id,
-                                      updates: {
-                                        status: checked ? 'done' : 'todo',
-                                        completed_at: checked ? new Date().toISOString() : null,
-                                      },
-                                    });
-                                  }}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <p className={cn('text-sm font-medium', task.status === 'done' && 'line-through text-muted-foreground')}>
-                                    {task.title}
-                                  </p>
-                                  {task.description && (
-                                    <p className="text-xs text-muted-foreground truncate">{task.description}</p>
-                                  )}
-                                </div>
-                                <Select
-                                  value={task.status || 'todo'}
-                                  onValueChange={(value) => {
-                                    updateTaskMutation.mutate({
-                                      id: task.id,
-                                      updates: {
-                                        status: value,
-                                        completed_at: value === 'done' ? new Date().toISOString() : null,
-                                      },
-                                    });
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[130px] h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(taskStatusConfig).map(([key, { label, textColor }]) => (
-                                      <SelectItem key={key} value={key}>
-                                        <span className={textColor}>{label}</span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteTaskMutation.mutate(task.id)}
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">Select a project to view tasks</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
             </div>
+
+            {/* Task Columns: To Do / In Progress / Done */}
+            {(() => {
+              const filterTasks = (tasks: ProjectTask[]) =>
+                selectedProjectId ? tasks.filter(t => t.project_id === selectedProjectId) : tasks;
+              
+              const filteredTodo = filterTasks(todoTasks);
+              const filteredInProgress = filterTasks(inProgressTasks);
+              const filteredDone = filterTasks(doneTasks);
+
+              const TaskCard = ({ task }: { task: ProjectTask }) => {
+                const project = projectMap.get(task.project_id);
+                const catConfig = project ? categoryConfig[(project.category as GoalCategory) || 'personal'] : categoryConfig.personal;
+                const CatIcon = catConfig.icon;
+                return (
+                  <div className="p-3 rounded-xl border border-border bg-card hover:shadow-md transition-all group">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <CatIcon className={cn('h-3 w-3', catConfig.color)} />
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {project?.name || 'Project'} › {catConfig.label}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={task.status === 'done'}
+                        onCheckedChange={(checked) => {
+                          updateTaskMutation.mutate({
+                            id: task.id,
+                            updates: {
+                              status: checked ? 'done' : 'todo',
+                              completed_at: checked ? new Date().toISOString() : null,
+                            },
+                          });
+                        }}
+                        className="mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-sm font-medium leading-snug', task.status === 'done' && 'line-through text-muted-foreground')}>
+                          {task.title}
+                        </p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteTaskMutation.mutate(task.id)}
+                        className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    {task.due_date && (
+                      <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(task.due_date), 'MMM d, yyyy')}
+                      </p>
+                    )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* To Do Column */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-slate-400" />
+                        To Do
+                        <span className="text-muted-foreground font-normal">({filteredTodo.length})</span>
+                      </h3>
+                    </div>
+                    <div className="space-y-2 min-h-[100px]">
+                      {filteredTodo.map(task => <TaskCard key={task.id} task={task} />)}
+                      {selectedProjectId && (
+                        <button
+                          onClick={() => setIsCreateTaskDialogOpen(true)}
+                          className="w-full p-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/30 hover:border-muted-foreground/30 transition-colors flex items-center gap-2"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add task
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* In Progress Column */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-400" />
+                        Working on it
+                        <span className="text-muted-foreground font-normal">({filteredInProgress.length})</span>
+                      </h3>
+                    </div>
+                    <div className="space-y-2 min-h-[100px]">
+                      {filteredInProgress.map(task => <TaskCard key={task.id} task={task} />)}
+                    </div>
+                  </div>
+
+                  {/* Done Column */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-400" />
+                        Done
+                        <span className="text-muted-foreground font-normal">({filteredDone.length})</span>
+                      </h3>
+                    </div>
+                    <div className="space-y-2 min-h-[100px]">
+                      {filteredDone.map(task => <TaskCard key={task.id} task={task} />)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Add Task Dialog */}
+            <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Task</DialogTitle>
+                  <DialogDescription>Add a new task to {selectedProject?.name || 'your project'}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Task Title</label>
+                    <Input
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="e.g., Buy flight tickets"
+                      maxLength={200}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description (optional)</label>
+                    <Textarea
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      placeholder="Add details..."
+                      maxLength={500}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)} className="flex-1">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateTask} className="flex-1" disabled={!newTaskTitle.trim()}>
+                      Add Task
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CollapsibleContent>
         </Collapsible>
 

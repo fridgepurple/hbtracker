@@ -182,6 +182,7 @@ export default function Goals() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<GoalType>('monthly');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [calendarPopoverDay, setCalendarPopoverDay] = useState<Date | null>(null);
   const [createGoalType, setCreateGoalType] = useState<GoalType>('monthly');
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDescription, setNewGoalDescription] = useState('');
@@ -516,45 +517,110 @@ export default function Goals() {
                         const dayGoals = goalsByDay.get(dayNum) || [];
                         const isCurrentWeek = weekDays.some(wd => isSameDay(wd, day));
                         const isSelected = isSameDay(day, currentDate);
+                        const isPopoverOpen = calendarPopoverDay !== null && isSameDay(calendarPopoverDay, day);
                         
                         return (
-                          <div
-                            key={day.toISOString()}
-                            onClick={() => setCurrentDate(day)}
-                            className={cn(
-                              'min-h-[80px] md:min-h-[100px] p-1.5 border-b border-r border-border cursor-pointer transition-colors',
-                              isSelected && 'bg-primary/5',
-                              activeTab === 'weekly' && isCurrentWeek && 'bg-accent/10',
-                              !isSelected && !isCurrentWeek && 'hover:bg-muted/30'
-                            )}
+                          <Popover 
+                            key={day.toISOString()} 
+                            open={isPopoverOpen} 
+                            onOpenChange={(open) => {
+                              if (open) {
+                                setCalendarPopoverDay(day);
+                                setCurrentDate(day);
+                              } else {
+                                setCalendarPopoverDay(null);
+                              }
+                            }}
                           >
-                            <div className={cn(
-                              'h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium mb-1',
-                              isToday && 'bg-primary text-primary-foreground',
-                              isSelected && !isToday && 'ring-2 ring-primary'
-                            )}>
-                              {dayNum}
-                            </div>
-                            {/* Goal dots */}
-                            {dayGoals.length > 0 && (
-                              <div className="space-y-0.5">
-                                {dayGoals.slice(0, 3).map((g) => (
-                                  <div
-                                    key={g.id}
-                                    className={cn(
-                                      'text-[10px] leading-tight px-1 py-0.5 rounded truncate',
-                                      g.completed ? 'bg-success/20 text-success-foreground line-through opacity-60' : 'bg-primary/10 text-foreground'
+                            <PopoverTrigger asChild>
+                              <div
+                                className={cn(
+                                  'min-h-[80px] md:min-h-[100px] p-1.5 border-b border-r border-border cursor-pointer transition-colors',
+                                  isSelected && 'bg-primary/5',
+                                  activeTab === 'weekly' && isCurrentWeek && 'bg-accent/10',
+                                  !isSelected && !isCurrentWeek && 'hover:bg-muted/30'
+                                )}
+                              >
+                                <div className={cn(
+                                  'h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium mb-1',
+                                  isToday && 'bg-primary text-primary-foreground',
+                                  isSelected && !isToday && 'ring-2 ring-primary'
+                                )}>
+                                  {dayNum}
+                                </div>
+                                {/* Goal dots */}
+                                {dayGoals.length > 0 && (
+                                  <div className="space-y-0.5">
+                                    {dayGoals.slice(0, 3).map((g) => (
+                                      <div
+                                        key={g.id}
+                                        className={cn(
+                                          'text-[10px] leading-tight px-1 py-0.5 rounded truncate',
+                                          g.completed ? 'bg-muted/50 text-muted-foreground line-through opacity-60' : 'bg-primary/10 text-foreground'
+                                        )}
+                                      >
+                                        {g.title}
+                                      </div>
+                                    ))}
+                                    {dayGoals.length > 3 && (
+                                      <span className="text-[9px] text-muted-foreground pl-1">+{dayGoals.length - 3} more</span>
                                     )}
-                                  >
-                                    {g.title}
                                   </div>
-                                ))}
-                                {dayGoals.length > 3 && (
-                                  <span className="text-[9px] text-muted-foreground pl-1">+{dayGoals.length - 3} more</span>
                                 )}
                               </div>
-                            )}
-                          </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" side="bottom" align="start">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">
+                                {format(day, 'MMM d, yyyy')}
+                              </p>
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => {
+                                    setCalendarPopoverDay(null);
+                                    setActiveTab('daily');
+                                    handleOpenCreateDialog('daily');
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium hover:bg-rose-500/10 text-rose-500 transition-colors"
+                                >
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  Add Daily Goal
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCalendarPopoverDay(null);
+                                    setActiveTab('weekly');
+                                    handleOpenCreateDialog('weekly');
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium hover:bg-amber-500/10 text-amber-500 transition-colors"
+                                >
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  Add Weekly Goal
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCalendarPopoverDay(null);
+                                    setActiveTab('monthly');
+                                    handleOpenCreateDialog('monthly');
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium hover:bg-purple-500/10 text-purple-500 transition-colors"
+                                >
+                                  <CalendarRange className="h-3.5 w-3.5" />
+                                  Add Monthly Goal
+                                </button>
+                                <hr className="border-border my-1" />
+                                <button
+                                  onClick={() => {
+                                    setCalendarPopoverDay(null);
+                                    setIsCreateProjectDialogOpen(true);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium hover:bg-sky-500/10 text-sky-500 transition-colors"
+                                >
+                                  <FolderKanban className="h-3.5 w-3.5" />
+                                  Add Project
+                                </button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         );
                       })}
                     </div>

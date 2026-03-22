@@ -21,7 +21,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   ChevronLeft, ChevronRight, Plus, Trash2, Calendar, CalendarDays, CalendarRange, 
-  Home, DollarSign, Briefcase, GraduationCap, Heart, FolderKanban, CheckCircle2
+  Home, DollarSign, Briefcase, GraduationCap, Heart, FolderKanban, CheckCircle2, Plane
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';

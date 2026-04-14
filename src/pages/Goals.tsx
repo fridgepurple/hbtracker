@@ -930,8 +930,13 @@ export default function Goals() {
 
             {/* Task Columns: To Do / In Progress / Done */}
             {(() => {
-              const filterTasks = (tasks: ProjectTask[]) =>
-                selectedProjectId ? tasks.filter(t => t.project_id === selectedProjectId) : tasks;
+              const filterTasks = (tasks: ProjectTask[]) => {
+                let filtered = selectedProjectId ? tasks.filter(t => t.project_id === selectedProjectId) : tasks;
+                if (!selectedProjectId && hiddenProjectIds.size > 0) {
+                  filtered = filtered.filter(t => !hiddenProjectIds.has(t.project_id));
+                }
+                return filtered;
+              };
               
               const filteredTodo = filterTasks(todoTasks);
               const filteredInProgress = filterTasks(inProgressTasks);

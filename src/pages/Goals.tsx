@@ -202,6 +202,8 @@ export default function Goals() {
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [showDoneColumn, setShowDoneColumn] = useState(false);
+  const [hiddenProjectIds, setHiddenProjectIds] = useState<Set<string>>(new Set());
   
   const queryClient = useQueryClient();
 

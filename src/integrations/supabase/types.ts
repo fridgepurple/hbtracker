@@ -94,6 +94,38 @@ export type Database = {
           },
         ]
       }
+      habit_notes: {
+        Row: {
+          created_at: string | null
+          date: string
+          habit_id: string
+          id: string
+          note: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          habit_id: string
+          id?: string
+          note: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          habit_id?: string
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_notes_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       habits: {
         Row: {
           archived_at: string | null

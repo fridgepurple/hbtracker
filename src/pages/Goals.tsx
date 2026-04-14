@@ -996,60 +996,99 @@ export default function Goals() {
               };
 
               return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* To Do Column */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-slate-400" />
-                        To Do
-                        <span className="text-muted-foreground font-normal">({filteredTodo.length})</span>
-                      </h3>
+                <div className="space-y-4">
+                  {!selectedProjectId && activeProjects.length > 1 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground font-medium">Show:</span>
+                      {activeProjects.map((project) => {
+                        const isHidden = hiddenProjectIds.has(project.id);
+                        const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
+                        return (
+                          <Button
+                            key={project.id}
+                            variant={isHidden ? 'ghost' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                              setHiddenProjectIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(project.id)) next.delete(project.id);
+                                else next.add(project.id);
+                                return next;
+                              });
+                            }}
+                            className={cn('text-xs gap-1', isHidden && 'opacity-40 line-through')}
+                          >
+                            <catConfig.icon className={cn('h-3 w-3', catConfig.color)} />
+                            {project.name}
+                          </Button>
+                        );
+                      })}
                     </div>
-                    <div className="space-y-2 min-h-[100px]">
-                      {filteredTodo.map(task => <TaskCard key={task.id} task={task} />)}
-                      {selectedProjectId && (
-                        <button
-                          onClick={() => setIsCreateTaskDialogOpen(true)}
-                          className="w-full p-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/30 hover:border-muted-foreground/30 transition-colors flex items-center gap-2"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add task
-                        </button>
-                      )}
+                  )}
+
+                  <div className={cn('grid grid-cols-1 gap-4', showDoneColumn ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-slate-400" />
+                          To Do
+                          <span className="text-muted-foreground font-normal">({filteredTodo.length})</span>
+                        </h3>
+                      </div>
+                      <div className="space-y-2 min-h-[100px]">
+                        {filteredTodo.map(task => <TaskCard key={task.id} task={task} />)}
+                        {selectedProjectId && (
+                          <button
+                            onClick={() => setIsCreateTaskDialogOpen(true)}
+                            className="w-full p-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/30 hover:border-muted-foreground/30 transition-colors flex items-center gap-2"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add task
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-amber-400" />
+                          Working on it
+                          <span className="text-muted-foreground font-normal">({filteredInProgress.length})</span>
+                        </h3>
+                      </div>
+                      <div className="space-y-2 min-h-[100px]">
+                        {filteredInProgress.map(task => <TaskCard key={task.id} task={task} />)}
+                      </div>
+                    </div>
+
+                    {showDoneColumn && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-400" />
+                            Done
+                            <span className="text-muted-foreground font-normal">({filteredDone.length})</span>
+                          </h3>
+                        </div>
+                        <div className="space-y-2 min-h-[100px]">
+                          {filteredDone.map(task => <TaskCard key={task.id} task={task} />)}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* In Progress Column */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-amber-400" />
-                        Working on it
-                        <span className="text-muted-foreground font-normal">({filteredInProgress.length})</span>
-                      </h3>
-                    </div>
-                    <div className="space-y-2 min-h-[100px]">
-                      {filteredInProgress.map(task => <TaskCard key={task.id} task={task} />)}
-                    </div>
-                  </div>
-
-                  {/* Done Column */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-green-400" />
-                        Done
-                        <span className="text-muted-foreground font-normal">({filteredDone.length})</span>
-                      </h3>
-                    </div>
-                    <div className="space-y-2 min-h-[100px]">
-                      {filteredDone.map(task => <TaskCard key={task.id} task={task} />)}
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => setShowDoneColumn(!showDoneColumn)}
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {showDoneColumn ? 'Hide' : 'Show'} completed tasks ({filteredDone.length})
+                  </button>
                 </div>
               );
-            })()}
+            })()
+
 
             {/* Add Task Dialog */}
             <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>

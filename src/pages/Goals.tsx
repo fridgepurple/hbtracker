@@ -1140,13 +1140,53 @@ export default function Goals() {
             )}
 
             {/* Add Task Dialog */}
-            <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
+            <Dialog
+              open={isCreateTaskDialogOpen}
+              onOpenChange={(open) => {
+                setIsCreateTaskDialogOpen(open);
+                if (!open) {
+                  setNewTaskTitle('');
+                  setNewTaskDescription('');
+                  setNewTaskDueDate('');
+                  setTaskDialogProjectId(null);
+                }
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Task</DialogTitle>
-                  <DialogDescription>Add a new task to {selectedProject?.name || 'your project'}</DialogDescription>
+                  <DialogDescription>
+                    {taskDialogProjectId
+                      ? `Add a new task to ${projectMap.get(taskDialogProjectId)?.name || 'your project'}`
+                      : 'Add a new task'}
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project</label>
+                    <Select
+                      value={taskDialogProjectId || ''}
+                      onValueChange={(v) => setTaskDialogProjectId(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeProjects.map((p) => {
+                          const cfg = categoryConfig[(p.category as GoalCategory) || 'personal'];
+                          const PIcon = cfg.icon;
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              <div className="flex items-center gap-2">
+                                <PIcon className={cn('h-4 w-4', cfg.color)} />
+                                <span>{p.name}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Task Title</label>
                     <Input
@@ -1165,11 +1205,24 @@ export default function Goals() {
                       maxLength={500}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Deadline (optional)</label>
+                    <Input
+                      type="date"
+                      value={newTaskDueDate}
+                      onChange={(e) => setNewTaskDueDate(e.target.value)}
+                    />
+                    <p className="text-[10px] text-muted-foreground">If set, the task will appear on the calendar.</p>
+                  </div>
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)} className="flex-1">
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateTask} className="flex-1" disabled={!newTaskTitle.trim()}>
+                    <Button
+                      onClick={handleCreateTask}
+                      className="flex-1"
+                      disabled={!newTaskTitle.trim() || !taskDialogProjectId}
+                    >
                       Add Task
                     </Button>
                   </div>

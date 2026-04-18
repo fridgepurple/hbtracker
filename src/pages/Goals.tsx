@@ -305,7 +305,7 @@ export default function Goals() {
     mutationFn: deleteProject,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setSelectedProjectId(null);
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Project deleted!');
     },
     onError: () => {

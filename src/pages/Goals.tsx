@@ -391,14 +391,16 @@ export default function Goals() {
   };
 
   const handleCreateTask = () => {
-    if (!newTaskTitle.trim() || !selectedProjectId) {
+    const projectId = taskDialogProjectId || selectedProjectId;
+    if (!newTaskTitle.trim() || !projectId) {
       toast.error('Please enter a task title');
       return;
     }
     createTaskMutation.mutate({
-      project_id: selectedProjectId,
+      project_id: projectId,
       title: newTaskTitle,
       description: newTaskDescription || undefined,
+      due_date: newTaskDueDate || undefined,
     });
   };
 

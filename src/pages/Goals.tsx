@@ -479,10 +479,6 @@ export default function Goals() {
   }, [dailyGoals, weeklyGoals, monthlyGoals]);
 
   // Group tasks by status for card view
-  const todoTasks = useMemo(() => allTasks.filter(t => t.status === 'todo' || !t.status), [allTasks]);
-  const inProgressTasks = useMemo(() => allTasks.filter(t => t.status === 'in_progress'), [allTasks]);
-  const doneTasks = useMemo(() => allTasks.filter(t => t.status === 'done'), [allTasks]);
-
   // Map project IDs to project names/categories
   const projectMap = useMemo(() => {
     const map = new Map<string, Project>();

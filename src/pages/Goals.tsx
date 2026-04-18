@@ -863,7 +863,7 @@ export default function Goals() {
             <button className="w-full flex items-center justify-between py-2 group">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <FolderKanban className="h-5 w-5 text-primary" />
-                Projects & Tasks
+                Projects
               </h2>
               <ChevronRight className={cn(
                 'h-5 w-5 text-muted-foreground transition-transform duration-200',
@@ -872,33 +872,12 @@ export default function Goals() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-6 pt-4">
-            {/* Project Tabs / Lists */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant={!selectedProjectId ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedProjectId(null)}
-                  className="text-xs"
-                >
-                  All Tasks
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1">{allTasks.filter(t => t.status !== 'done').length}</Badge>
-                </Button>
-                {activeProjects.map((project) => {
-                  const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
-                  return (
-                    <Button
-                      key={project.id}
-                      variant={selectedProjectId === project.id ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedProjectId(project.id)}
-                      className="text-xs gap-1.5"
-                    >
-                      <catConfig.icon className={cn('h-3.5 w-3.5', selectedProjectId === project.id ? '' : catConfig.color)} />
-                      {project.name}
-                    </Button>
-                  );
-                })}
+            {/* Header: New Project + Completed projects */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm text-muted-foreground">
+                {activeProjects.length} {activeProjects.length === 1 ? 'project' : 'projects'} in progress
+              </p>
+              <div className="flex items-center gap-2">
                 {completedProjects.length > 0 && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -907,24 +886,48 @@ export default function Goals() {
                         Completed ({completedProjects.length})
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-56 p-2">
-                      {completedProjects.map((p) => (
-                        <button
-                          key={p.id}
-                          className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted/50 text-muted-foreground line-through"
-                          onClick={() => setSelectedProjectId(p.id)}
-                        >
-                          {p.name}
-                        </button>
-                      ))}
+                    <PopoverContent className="w-64 p-2">
+                      {completedProjects.map((p) => {
+                        const cfg = categoryConfig[(p.category as GoalCategory) || 'personal'];
+                        const PIcon = cfg.icon;
+                        return (
+                          <div key={p.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground line-through">
+                              <PIcon className={cn('h-3.5 w-3.5', cfg.color)} />
+                              {p.name}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  updateProject(p.id, { status: 'active' }).then(() => {
+                                    queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                    toast.success('Project reactivated');
+                                  });
+                                }}
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => deleteProjectMutation.mutate(p.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </PopoverContent>
                   </Popover>
                 )}
-              </div>
-              <div className="flex items-center gap-2">
                 <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="text-xs">
+                    <Button size="sm" className="text-xs">
                       <Plus className="h-3.5 w-3.5 mr-1" />
                       New Project
                     </Button>
@@ -982,197 +985,159 @@ export default function Goals() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                {selectedProject && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newStatus = isSelectedProjectComplete ? 'active' : 'completed';
-                        updateProject(selectedProject.id, { status: newStatus }).then(() => {
-                          queryClient.invalidateQueries({ queryKey: ['projects'] });
-                          queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
-                          toast.success(newStatus === 'completed' ? 'Project completed!' : 'Project reactivated!');
-                        });
-                      }}
-                      className="text-xs"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      {isSelectedProjectComplete ? 'Reactivate' : 'Complete'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Task Columns: To Do / In Progress / Done */}
-            {(() => {
-              const filterTasks = (tasks: ProjectTask[]) => {
-                let filtered = selectedProjectId ? tasks.filter(t => t.project_id === selectedProjectId) : tasks;
-                if (!selectedProjectId && hiddenProjectIds.size > 0) {
-                  filtered = filtered.filter(t => !hiddenProjectIds.has(t.project_id));
-                }
-                return filtered;
-              };
-              
-              const filteredTodo = filterTasks(todoTasks);
-              const filteredInProgress = filterTasks(inProgressTasks);
-              const filteredDone = filterTasks(doneTasks);
+            {/* Project Cards Grid */}
+            {activeProjects.length === 0 ? (
+              <div className="py-12 text-center border border-dashed border-border rounded-xl">
+                <FolderKanban className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">No projects yet</p>
+                <Button size="sm" onClick={() => setIsCreateProjectDialogOpen(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Create your first project
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {activeProjects.map((project) => {
+                  const cfg = categoryConfig[(project.category as GoalCategory) || 'personal'];
+                  const PIcon = cfg.icon;
+                  const tasks = allTasks.filter(t => t.project_id === project.id);
+                  const hideDone = hideDoneByProject.has(project.id);
+                  const visibleTasks = hideDone ? tasks.filter(t => t.status !== 'done') : tasks;
+                  const doneCount = tasks.filter(t => t.status === 'done').length;
+                  const totalCount = tasks.length;
 
-              const TaskCard = ({ task }: { task: ProjectTask }) => {
-                const project = projectMap.get(task.project_id);
-                const catConfig = project ? categoryConfig[(project.category as GoalCategory) || 'personal'] : categoryConfig.personal;
-                const CatIcon = catConfig.icon;
-                return (
-                  <div className="p-3 rounded-xl border border-border bg-card hover:shadow-md transition-all group">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <CatIcon className={cn('h-3 w-3', catConfig.color)} />
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {project?.name || 'Project'} › {catConfig.label}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={task.status === 'done'}
-                        onCheckedChange={(checked) => {
-                          updateTaskMutation.mutate({
-                            id: task.id,
-                            updates: {
-                              status: checked ? 'done' : 'todo',
-                              completed_at: checked ? new Date().toISOString() : null,
-                            },
-                          });
-                        }}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('text-sm font-medium leading-snug', task.status === 'done' && 'line-through text-muted-foreground')}>
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                  return (
+                    <Card key={project.id} className="overflow-hidden flex flex-col">
+                      {/* Project header with category color */}
+                      <div className={cn('px-4 py-3 border-b border-border', cfg.bgColor)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <PIcon className={cn('h-4 w-4 shrink-0', cfg.color)} />
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-sm truncate">{project.name}</h3>
+                              <p className="text-[10px] text-muted-foreground">{cfg.label} · {doneCount}/{totalCount} done</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Mark project complete"
+                              onClick={() => {
+                                updateProject(project.id, { status: 'completed' }).then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                  toast.success('Project completed!');
+                                });
+                              }}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => deleteProjectMutation.mutate(project.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        {project.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteTaskMutation.mutate(task.id)}
-                        className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    {task.due_date && (
-                      <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(task.due_date), 'MMM d, yyyy')}
-                      </p>
-                    )}
-                  </div>
-                );
-              };
 
-              return (
-                <div className="space-y-4">
-                  {!selectedProjectId && activeProjects.length > 1 && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground font-medium">Show:</span>
-                      {activeProjects.map((project) => {
-                        const isHidden = hiddenProjectIds.has(project.id);
-                        const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
-                        return (
-                          <Button
-                            key={project.id}
-                            variant={isHidden ? 'ghost' : 'outline'}
-                            size="sm"
+                      {/* Task checklist */}
+                      <div className="p-3 space-y-1.5 flex-1">
+                        {visibleTasks.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-3">
+                            {hideDone && tasks.length > 0 ? 'All tasks done 🎉' : 'No tasks yet'}
+                          </p>
+                        ) : (
+                          visibleTasks.map((task) => (
+                            <div key={task.id} className="flex items-start gap-2 py-1 group">
+                              <Checkbox
+                                checked={task.status === 'done'}
+                                onCheckedChange={(checked) => {
+                                  updateTaskMutation.mutate({
+                                    id: task.id,
+                                    updates: {
+                                      status: checked ? 'done' : 'todo',
+                                      completed_at: checked ? new Date().toISOString() : null,
+                                    },
+                                  });
+                                }}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  'text-sm leading-snug',
+                                  task.status === 'done' && 'line-through text-muted-foreground'
+                                )}>
+                                  {task.title}
+                                </p>
+                                {task.due_date && (
+                                  <p className={cn(
+                                    'text-[10px] mt-0.5 flex items-center gap-1',
+                                    new Date(task.due_date) < new Date() && task.status !== 'done'
+                                      ? 'text-destructive'
+                                      : 'text-muted-foreground'
+                                  )}>
+                                    <Calendar className="h-2.5 w-2.5" />
+                                    {format(new Date(task.due_date), 'MMM d')}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteTaskMutation.mutate(task.id)}
+                                className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Footer: add task + hide done toggle */}
+                      <div className="px-3 py-2 border-t border-border flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => {
+                            setTaskDialogProjectId(project.id);
+                            setIsCreateTaskDialogOpen(true);
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add task
+                        </button>
+                        {doneCount > 0 && (
+                          <button
                             onClick={() => {
-                              setHiddenProjectIds(prev => {
+                              setHideDoneByProject(prev => {
                                 const next = new Set(prev);
                                 if (next.has(project.id)) next.delete(project.id);
                                 else next.add(project.id);
                                 return next;
                               });
                             }}
-                            className={cn('text-xs gap-1', isHidden && 'opacity-40 line-through')}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <catConfig.icon className={cn('h-3 w-3', catConfig.color)} />
-                            {project.name}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className={cn('grid grid-cols-1 gap-4', showDoneColumn ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-slate-400" />
-                          To Do
-                          <span className="text-muted-foreground font-normal">({filteredTodo.length})</span>
-                        </h3>
-                      </div>
-                      <div className="space-y-2 min-h-[100px]">
-                        {filteredTodo.map(task => <TaskCard key={task.id} task={task} />)}
-                        {selectedProjectId && (
-                          <button
-                            onClick={() => setIsCreateTaskDialogOpen(true)}
-                            className="w-full p-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/30 hover:border-muted-foreground/30 transition-colors flex items-center gap-2"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add task
+                            {hideDone ? `Show done (${doneCount})` : `Hide done (${doneCount})`}
                           </button>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-400" />
-                          Working on it
-                          <span className="text-muted-foreground font-normal">({filteredInProgress.length})</span>
-                        </h3>
-                      </div>
-                      <div className="space-y-2 min-h-[100px]">
-                        {filteredInProgress.map(task => <TaskCard key={task.id} task={task} />)}
-                      </div>
-                    </div>
-
-                    {showDoneColumn && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-green-400" />
-                            Done
-                            <span className="text-muted-foreground font-normal">({filteredDone.length})</span>
-                          </h3>
-                        </div>
-                        <div className="space-y-2 min-h-[100px]">
-                          {filteredDone.map(task => <TaskCard key={task.id} task={task} />)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => setShowDoneColumn(!showDoneColumn)}
-                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {showDoneColumn ? 'Hide' : 'Show'} completed tasks ({filteredDone.length})
-                  </button>
-                </div>
-              );
-            })()}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Add Task Dialog */}
             <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>

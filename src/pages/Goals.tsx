@@ -4,7 +4,7 @@ import { format, addMonths, getWeek, startOfWeek, endOfWeek, startOfMonth, endOf
 import Layout from '@/components/Layout';
 import { fetchGoals, fetchAllGoalsForMonth, createGoal, updateGoal, deleteGoal, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
 import { 
-  fetchProjects, fetchProjectTasks, fetchAllTasks, createProject, updateProject, deleteProject,
+  fetchProjects, fetchAllTasks, createProject, updateProject, deleteProject,
   createTask, updateTask, deleteTask, Project, ProjectTask 
 } from '@/lib/projectQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -198,12 +198,13 @@ export default function Goals() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState<GoalCategory>('work');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [showDoneColumn, setShowDoneColumn] = useState(false);
-  const [hiddenProjectIds, setHiddenProjectIds] = useState<Set<string>>(new Set());
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [taskDialogProjectId, setTaskDialogProjectId] = useState<string | null>(null);
+  const [hideDoneByProject, setHideDoneByProject] = useState<Set<string>>(new Set());
   
   const queryClient = useQueryClient();
 
@@ -238,12 +239,6 @@ export default function Goals() {
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: fetchProjects,
-  });
-
-  const { data: projectTasks = [] } = useQuery({
-    queryKey: ['project_tasks', selectedProjectId],
-    queryFn: () => selectedProjectId ? fetchProjectTasks(selectedProjectId) : Promise.resolve([]),
-    enabled: !!selectedProjectId,
   });
 
   // Fetch all tasks across all projects for the card view
@@ -310,7 +305,7 @@ export default function Goals() {
     mutationFn: deleteProject,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setSelectedProjectId(null);
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Project deleted!');
     },
     onError: () => {
@@ -323,10 +318,13 @@ export default function Goals() {
     mutationFn: createTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Task created!');
       setIsCreateTaskDialogOpen(false);
       setNewTaskTitle('');
       setNewTaskDescription('');
+      setNewTaskDueDate('');
+      setTaskDialogProjectId(null);
     },
     onError: () => {
       toast.error('Failed to create task');
@@ -337,6 +335,7 @@ export default function Goals() {
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ProjectTask> }) => updateTask(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
     },
     onError: () => {
       toast.error('Failed to update task');
@@ -347,6 +346,7 @@ export default function Goals() {
     mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Task deleted!');
     },
     onError: () => {
@@ -390,14 +390,16 @@ export default function Goals() {
   };
 
   const handleCreateTask = () => {
-    if (!newTaskTitle.trim() || !selectedProjectId) {
+    const projectId = taskDialogProjectId;
+    if (!newTaskTitle.trim() || !projectId) {
       toast.error('Please enter a task title');
       return;
     }
     createTaskMutation.mutate({
-      project_id: selectedProjectId,
+      project_id: projectId,
       title: newTaskTitle,
       description: newTaskDescription || undefined,
+      due_date: newTaskDueDate || undefined,
     });
   };
 
@@ -417,11 +419,6 @@ export default function Goals() {
 
   const activeProjects = projects.filter(p => p.status !== 'completed');
   const completedProjects = projects.filter(p => p.status === 'completed');
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const completedTasks = projectTasks.filter(t => t.status === 'done').length;
-  const totalTasks = projectTasks.length;
-  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  const isSelectedProjectComplete = selectedProject?.status === 'completed';
 
   // Build the big calendar
   const today = new Date();
@@ -447,6 +444,22 @@ export default function Goals() {
     return map;
   }, [allMonthGoals]);
 
+  // Map of days that have task deadlines (for the current visible month)
+  const tasksByDay = useMemo(() => {
+    const map = new Map<number, ProjectTask[]>();
+    allTasks.forEach(t => {
+      if (!t.due_date) return;
+      const d = new Date(t.due_date);
+      if (d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth) {
+        const dayNum = d.getDate();
+        const existing = map.get(dayNum) || [];
+        existing.push(t);
+        map.set(dayNum, existing);
+      }
+    });
+    return map;
+  }, [allTasks, currentYear, currentMonth]);
+
   const handleGoalUpdate = (id: string, updates: Partial<Goal>) => {
     updateGoalMutation.mutate({ id, updates });
   };
@@ -471,10 +484,6 @@ export default function Goals() {
   }, [dailyGoals, weeklyGoals, monthlyGoals]);
 
   // Group tasks by status for card view
-  const todoTasks = useMemo(() => allTasks.filter(t => t.status === 'todo' || !t.status), [allTasks]);
-  const inProgressTasks = useMemo(() => allTasks.filter(t => t.status === 'in_progress'), [allTasks]);
-  const doneTasks = useMemo(() => allTasks.filter(t => t.status === 'done'), [allTasks]);
-
   // Map project IDs to project names/categories
   const projectMap = useMemo(() => {
     const map = new Map<string, Project>();
@@ -575,14 +584,20 @@ export default function Goals() {
                         const dayNum = getDate(day);
                         const isToday = isSameDay(day, today);
                         const dayGoals = goalsByDay.get(dayNum) || [];
+                        const dayTasks = tasksByDay.get(dayNum) || [];
                         const isCurrentWeek = weekDays.some(wd => isSameDay(wd, day));
                         const isSelected = isSameDay(day, currentDate);
                         const isPopoverOpen = calendarPopoverDay !== null && isSameDay(calendarPopoverDay, day);
-                        
+                        const visibleGoals = dayGoals.slice(0, 2);
+                        const remainingForTasks = Math.max(0, 3 - visibleGoals.length);
+                        const visibleTasks = dayTasks.slice(0, remainingForTasks);
+                        const hiddenCount = dayGoals.length + dayTasks.length - visibleGoals.length - visibleTasks.length;
+                        const taskCategoryDots = Array.from(new Set(dayTasks.map(t => projectMap.get(t.project_id)?.category || 'personal'))).slice(0, 3);
+
                         return (
-                          <Popover 
-                            key={day.toISOString()} 
-                            open={isPopoverOpen} 
+                          <Popover
+                            key={day.toISOString()}
+                            open={isPopoverOpen}
                             onOpenChange={(open) => {
                               if (open) {
                                 setCalendarPopoverDay(day);
@@ -601,17 +616,26 @@ export default function Goals() {
                                   !isSelected && !isCurrentWeek && 'hover:bg-muted/30'
                                 )}
                               >
-                                <div className={cn(
-                                  'h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium mb-1',
-                                  isToday && 'bg-primary text-primary-foreground',
-                                  isSelected && !isToday && 'ring-2 ring-primary'
-                                )}>
-                                  {dayNum}
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className={cn(
+                                    'h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium',
+                                    isToday && 'bg-primary text-primary-foreground',
+                                    isSelected && !isToday && 'ring-2 ring-primary'
+                                  )}>
+                                    {dayNum}
+                                  </div>
+                                  {taskCategoryDots.length > 0 && (
+                                    <div className="flex gap-0.5">
+                                      {taskCategoryDots.map((cat, i) => {
+                                        const cfg = categoryConfig[(cat as GoalCategory) || 'personal'];
+                                        return <span key={i} className={cn('h-1.5 w-1.5 rounded-full', cfg.bgColor)} />;
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                                {/* Goal dots */}
-                                {dayGoals.length > 0 && (
+                                {(visibleGoals.length > 0 || visibleTasks.length > 0) && (
                                   <div className="space-y-0.5">
-                                    {dayGoals.slice(0, 3).map((g) => (
+                                    {visibleGoals.map((g) => (
                                       <div
                                         key={g.id}
                                         className={cn(
@@ -622,17 +646,54 @@ export default function Goals() {
                                         {g.title}
                                       </div>
                                     ))}
-                                    {dayGoals.length > 3 && (
-                                      <span className="text-[9px] text-muted-foreground pl-1">+{dayGoals.length - 3} more</span>
+                                    {visibleTasks.map((t) => {
+                                      const proj = projectMap.get(t.project_id);
+                                      const cfg = categoryConfig[(proj?.category as GoalCategory) || 'personal'];
+                                      const TaskIcon = cfg.icon;
+                                      return (
+                                        <div
+                                          key={t.id}
+                                          className={cn(
+                                            'text-[10px] leading-tight px-1 py-0.5 rounded truncate flex items-center gap-1',
+                                            cfg.bgColor,
+                                            cfg.color,
+                                            t.status === 'done' && 'line-through opacity-60'
+                                          )}
+                                        >
+                                          <TaskIcon className="h-2.5 w-2.5 shrink-0" />
+                                          <span className="truncate">{t.title}</span>
+                                        </div>
+                                      );
+                                    })}
+                                    {hiddenCount > 0 && (
+                                      <span className="text-[9px] text-muted-foreground pl-1">+{hiddenCount} more</span>
                                     )}
                                   </div>
                                 )}
                               </div>
                             </PopoverTrigger>
-                            <PopoverContent className="w-48 p-2" side="bottom" align="start">
+                            <PopoverContent className="w-60 p-2" side="bottom" align="start">
                               <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">
                                 {format(day, 'MMM d, yyyy')}
                               </p>
+                              {dayTasks.length > 0 && (
+                                <div className="mb-2 pb-2 border-b border-border space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">Tasks due</p>
+                                  {dayTasks.map((t) => {
+                                    const proj = projectMap.get(t.project_id);
+                                    const cfg = categoryConfig[(proj?.category as GoalCategory) || 'personal'];
+                                    const TaskIcon = cfg.icon;
+                                    return (
+                                      <div key={t.id} className="flex items-center gap-2 px-1 py-1 text-xs">
+                                        <TaskIcon className={cn('h-3 w-3 shrink-0', cfg.color)} />
+                                        <span className={cn('truncate', t.status === 'done' && 'line-through text-muted-foreground')}>
+                                          {t.title}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               <div className="space-y-1">
                                 <button
                                   onClick={() => {
@@ -678,6 +739,20 @@ export default function Goals() {
                                   <FolderKanban className="h-3.5 w-3.5" />
                                   Add Project
                                 </button>
+                                {activeProjects.length > 0 && (
+                                  <button
+                                    onClick={() => {
+                                      setCalendarPopoverDay(null);
+                                      setNewTaskDueDate(format(day, 'yyyy-MM-dd'));
+                                      setTaskDialogProjectId(activeProjects[0].id);
+                                      setIsCreateTaskDialogOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium hover:bg-emerald-500/10 text-emerald-500 transition-colors"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Add Task on this date
+                                  </button>
+                                )}
                               </div>
                             </PopoverContent>
                           </Popover>
@@ -778,7 +853,7 @@ export default function Goals() {
             <button className="w-full flex items-center justify-between py-2 group">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <FolderKanban className="h-5 w-5 text-primary" />
-                Projects & Tasks
+                Projects
               </h2>
               <ChevronRight className={cn(
                 'h-5 w-5 text-muted-foreground transition-transform duration-200',
@@ -787,33 +862,12 @@ export default function Goals() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-6 pt-4">
-            {/* Project Tabs / Lists */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant={!selectedProjectId ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedProjectId(null)}
-                  className="text-xs"
-                >
-                  All Tasks
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1">{allTasks.filter(t => t.status !== 'done').length}</Badge>
-                </Button>
-                {activeProjects.map((project) => {
-                  const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
-                  return (
-                    <Button
-                      key={project.id}
-                      variant={selectedProjectId === project.id ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedProjectId(project.id)}
-                      className="text-xs gap-1.5"
-                    >
-                      <catConfig.icon className={cn('h-3.5 w-3.5', selectedProjectId === project.id ? '' : catConfig.color)} />
-                      {project.name}
-                    </Button>
-                  );
-                })}
+            {/* Header: New Project + Completed projects */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm text-muted-foreground">
+                {activeProjects.length} {activeProjects.length === 1 ? 'project' : 'projects'} in progress
+              </p>
+              <div className="flex items-center gap-2">
                 {completedProjects.length > 0 && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -822,24 +876,48 @@ export default function Goals() {
                         Completed ({completedProjects.length})
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-56 p-2">
-                      {completedProjects.map((p) => (
-                        <button
-                          key={p.id}
-                          className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted/50 text-muted-foreground line-through"
-                          onClick={() => setSelectedProjectId(p.id)}
-                        >
-                          {p.name}
-                        </button>
-                      ))}
+                    <PopoverContent className="w-64 p-2">
+                      {completedProjects.map((p) => {
+                        const cfg = categoryConfig[(p.category as GoalCategory) || 'personal'];
+                        const PIcon = cfg.icon;
+                        return (
+                          <div key={p.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground line-through">
+                              <PIcon className={cn('h-3.5 w-3.5', cfg.color)} />
+                              {p.name}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  updateProject(p.id, { status: 'active' }).then(() => {
+                                    queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                    toast.success('Project reactivated');
+                                  });
+                                }}
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => deleteProjectMutation.mutate(p.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </PopoverContent>
                   </Popover>
                 )}
-              </div>
-              <div className="flex items-center gap-2">
                 <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="text-xs">
+                    <Button size="sm" className="text-xs">
                       <Plus className="h-3.5 w-3.5 mr-1" />
                       New Project
                     </Button>
@@ -897,206 +975,208 @@ export default function Goals() {
                     </div>
                   </DialogContent>
                 </Dialog>
-                {selectedProject && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newStatus = isSelectedProjectComplete ? 'active' : 'completed';
-                        updateProject(selectedProject.id, { status: newStatus }).then(() => {
-                          queryClient.invalidateQueries({ queryKey: ['projects'] });
-                          queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
-                          toast.success(newStatus === 'completed' ? 'Project completed!' : 'Project reactivated!');
-                        });
-                      }}
-                      className="text-xs"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      {isSelectedProjectComplete ? 'Reactivate' : 'Complete'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteProjectMutation.mutate(selectedProject.id)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Task Columns: To Do / In Progress / Done */}
-            {(() => {
-              const filterTasks = (tasks: ProjectTask[]) => {
-                let filtered = selectedProjectId ? tasks.filter(t => t.project_id === selectedProjectId) : tasks;
-                if (!selectedProjectId && hiddenProjectIds.size > 0) {
-                  filtered = filtered.filter(t => !hiddenProjectIds.has(t.project_id));
-                }
-                return filtered;
-              };
-              
-              const filteredTodo = filterTasks(todoTasks);
-              const filteredInProgress = filterTasks(inProgressTasks);
-              const filteredDone = filterTasks(doneTasks);
+            {/* Project Cards Grid */}
+            {activeProjects.length === 0 ? (
+              <div className="py-12 text-center border border-dashed border-border rounded-xl">
+                <FolderKanban className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">No projects yet</p>
+                <Button size="sm" onClick={() => setIsCreateProjectDialogOpen(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Create your first project
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {activeProjects.map((project) => {
+                  const cfg = categoryConfig[(project.category as GoalCategory) || 'personal'];
+                  const PIcon = cfg.icon;
+                  const tasks = allTasks.filter(t => t.project_id === project.id);
+                  const hideDone = hideDoneByProject.has(project.id);
+                  const visibleTasks = hideDone ? tasks.filter(t => t.status !== 'done') : tasks;
+                  const doneCount = tasks.filter(t => t.status === 'done').length;
+                  const totalCount = tasks.length;
 
-              const TaskCard = ({ task }: { task: ProjectTask }) => {
-                const project = projectMap.get(task.project_id);
-                const catConfig = project ? categoryConfig[(project.category as GoalCategory) || 'personal'] : categoryConfig.personal;
-                const CatIcon = catConfig.icon;
-                return (
-                  <div className="p-3 rounded-xl border border-border bg-card hover:shadow-md transition-all group">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <CatIcon className={cn('h-3 w-3', catConfig.color)} />
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {project?.name || 'Project'} › {catConfig.label}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={task.status === 'done'}
-                        onCheckedChange={(checked) => {
-                          updateTaskMutation.mutate({
-                            id: task.id,
-                            updates: {
-                              status: checked ? 'done' : 'todo',
-                              completed_at: checked ? new Date().toISOString() : null,
-                            },
-                          });
-                        }}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('text-sm font-medium leading-snug', task.status === 'done' && 'line-through text-muted-foreground')}>
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                  return (
+                    <Card key={project.id} className="overflow-hidden flex flex-col">
+                      {/* Project header with category color */}
+                      <div className={cn('px-4 py-3 border-b border-border', cfg.bgColor)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <PIcon className={cn('h-4 w-4 shrink-0', cfg.color)} />
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-sm truncate">{project.name}</h3>
+                              <p className="text-[10px] text-muted-foreground">{cfg.label} · {doneCount}/{totalCount} done</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Mark project complete"
+                              onClick={() => {
+                                updateProject(project.id, { status: 'completed' }).then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                  toast.success('Project completed!');
+                                });
+                              }}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => deleteProjectMutation.mutate(project.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        {project.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteTaskMutation.mutate(task.id)}
-                        className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    {task.due_date && (
-                      <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(task.due_date), 'MMM d, yyyy')}
-                      </p>
-                    )}
-                  </div>
-                );
-              };
 
-              return (
-                <div className="space-y-4">
-                  {!selectedProjectId && activeProjects.length > 1 && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground font-medium">Show:</span>
-                      {activeProjects.map((project) => {
-                        const isHidden = hiddenProjectIds.has(project.id);
-                        const catConfig = categoryConfig[(project.category as GoalCategory) || 'personal'];
-                        return (
-                          <Button
-                            key={project.id}
-                            variant={isHidden ? 'ghost' : 'outline'}
-                            size="sm"
+                      {/* Task checklist */}
+                      <div className="p-3 space-y-1.5 flex-1">
+                        {visibleTasks.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-3">
+                            {hideDone && tasks.length > 0 ? 'All tasks done 🎉' : 'No tasks yet'}
+                          </p>
+                        ) : (
+                          visibleTasks.map((task) => (
+                            <div key={task.id} className="flex items-start gap-2 py-1 group">
+                              <Checkbox
+                                checked={task.status === 'done'}
+                                onCheckedChange={(checked) => {
+                                  updateTaskMutation.mutate({
+                                    id: task.id,
+                                    updates: {
+                                      status: checked ? 'done' : 'todo',
+                                      completed_at: checked ? new Date().toISOString() : null,
+                                    },
+                                  });
+                                }}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  'text-sm leading-snug',
+                                  task.status === 'done' && 'line-through text-muted-foreground'
+                                )}>
+                                  {task.title}
+                                </p>
+                                {task.due_date && (
+                                  <p className={cn(
+                                    'text-[10px] mt-0.5 flex items-center gap-1',
+                                    new Date(task.due_date) < new Date() && task.status !== 'done'
+                                      ? 'text-destructive'
+                                      : 'text-muted-foreground'
+                                  )}>
+                                    <Calendar className="h-2.5 w-2.5" />
+                                    {format(new Date(task.due_date), 'MMM d')}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteTaskMutation.mutate(task.id)}
+                                className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Footer: add task + hide done toggle */}
+                      <div className="px-3 py-2 border-t border-border flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => {
+                            setTaskDialogProjectId(project.id);
+                            setIsCreateTaskDialogOpen(true);
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add task
+                        </button>
+                        {doneCount > 0 && (
+                          <button
                             onClick={() => {
-                              setHiddenProjectIds(prev => {
+                              setHideDoneByProject(prev => {
                                 const next = new Set(prev);
                                 if (next.has(project.id)) next.delete(project.id);
                                 else next.add(project.id);
                                 return next;
                               });
                             }}
-                            className={cn('text-xs gap-1', isHidden && 'opacity-40 line-through')}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <catConfig.icon className={cn('h-3 w-3', catConfig.color)} />
-                            {project.name}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className={cn('grid grid-cols-1 gap-4', showDoneColumn ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-slate-400" />
-                          To Do
-                          <span className="text-muted-foreground font-normal">({filteredTodo.length})</span>
-                        </h3>
-                      </div>
-                      <div className="space-y-2 min-h-[100px]">
-                        {filteredTodo.map(task => <TaskCard key={task.id} task={task} />)}
-                        {selectedProjectId && (
-                          <button
-                            onClick={() => setIsCreateTaskDialogOpen(true)}
-                            className="w-full p-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/30 hover:border-muted-foreground/30 transition-colors flex items-center gap-2"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add task
+                            {hideDone ? `Show done (${doneCount})` : `Hide done (${doneCount})`}
                           </button>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-400" />
-                          Working on it
-                          <span className="text-muted-foreground font-normal">({filteredInProgress.length})</span>
-                        </h3>
-                      </div>
-                      <div className="space-y-2 min-h-[100px]">
-                        {filteredInProgress.map(task => <TaskCard key={task.id} task={task} />)}
-                      </div>
-                    </div>
-
-                    {showDoneColumn && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-green-400" />
-                            Done
-                            <span className="text-muted-foreground font-normal">({filteredDone.length})</span>
-                          </h3>
-                        </div>
-                        <div className="space-y-2 min-h-[100px]">
-                          {filteredDone.map(task => <TaskCard key={task.id} task={task} />)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => setShowDoneColumn(!showDoneColumn)}
-                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {showDoneColumn ? 'Hide' : 'Show'} completed tasks ({filteredDone.length})
-                  </button>
-                </div>
-              );
-            })()}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Add Task Dialog */}
-            <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
+            <Dialog
+              open={isCreateTaskDialogOpen}
+              onOpenChange={(open) => {
+                setIsCreateTaskDialogOpen(open);
+                if (!open) {
+                  setNewTaskTitle('');
+                  setNewTaskDescription('');
+                  setNewTaskDueDate('');
+                  setTaskDialogProjectId(null);
+                }
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Task</DialogTitle>
-                  <DialogDescription>Add a new task to {selectedProject?.name || 'your project'}</DialogDescription>
+                  <DialogDescription>
+                    {taskDialogProjectId
+                      ? `Add a new task to ${projectMap.get(taskDialogProjectId)?.name || 'your project'}`
+                      : 'Add a new task'}
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project</label>
+                    <Select
+                      value={taskDialogProjectId || ''}
+                      onValueChange={(v) => setTaskDialogProjectId(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeProjects.map((p) => {
+                          const cfg = categoryConfig[(p.category as GoalCategory) || 'personal'];
+                          const PIcon = cfg.icon;
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              <div className="flex items-center gap-2">
+                                <PIcon className={cn('h-4 w-4', cfg.color)} />
+                                <span>{p.name}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Task Title</label>
                     <Input
@@ -1115,11 +1195,24 @@ export default function Goals() {
                       maxLength={500}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Deadline (optional)</label>
+                    <Input
+                      type="date"
+                      value={newTaskDueDate}
+                      onChange={(e) => setNewTaskDueDate(e.target.value)}
+                    />
+                    <p className="text-[10px] text-muted-foreground">If set, the task will appear on the calendar.</p>
+                  </div>
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)} className="flex-1">
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateTask} className="flex-1" disabled={!newTaskTitle.trim()}>
+                    <Button
+                      onClick={handleCreateTask}
+                      className="flex-1"
+                      disabled={!newTaskTitle.trim() || !taskDialogProjectId}
+                    >
                       Add Task
                     </Button>
                   </div>

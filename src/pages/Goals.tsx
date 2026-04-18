@@ -1087,8 +1087,7 @@ export default function Goals() {
                   </button>
                 </div>
               );
-            })()
-
+            })()}
 
             {/* Add Task Dialog */}
             <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>

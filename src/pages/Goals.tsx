@@ -198,7 +198,7 @@ export default function Goals() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState<GoalCategory>('work');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');

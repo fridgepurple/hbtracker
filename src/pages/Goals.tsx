@@ -414,11 +414,6 @@ export default function Goals() {
 
   const activeProjects = projects.filter(p => p.status !== 'completed');
   const completedProjects = projects.filter(p => p.status === 'completed');
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const completedTasks = projectTasks.filter(t => t.status === 'done').length;
-  const totalTasks = projectTasks.length;
-  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  const isSelectedProjectComplete = selectedProject?.status === 'completed';
 
   // Build the big calendar
   const today = new Date();

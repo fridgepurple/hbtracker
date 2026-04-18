@@ -385,7 +385,7 @@ export default function Goals() {
   };
 
   const handleCreateTask = () => {
-    const projectId = taskDialogProjectId || selectedProjectId;
+    const projectId = taskDialogProjectId;
     if (!newTaskTitle.trim() || !projectId) {
       toast.error('Please enter a task title');
       return;

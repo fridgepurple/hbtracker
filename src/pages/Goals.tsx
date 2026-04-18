@@ -241,12 +241,6 @@ export default function Goals() {
     queryFn: fetchProjects,
   });
 
-  const { data: projectTasks = [] } = useQuery({
-    queryKey: ['project_tasks', selectedProjectId],
-    queryFn: () => selectedProjectId ? fetchProjectTasks(selectedProjectId) : Promise.resolve([]),
-    enabled: !!selectedProjectId,
-  });
-
   // Fetch all tasks across all projects for the card view
   const { data: allTasks = [] } = useQuery({
     queryKey: ['all_project_tasks'],

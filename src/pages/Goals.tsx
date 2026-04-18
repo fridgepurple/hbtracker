@@ -450,6 +450,22 @@ export default function Goals() {
     return map;
   }, [allMonthGoals]);
 
+  // Map of days that have task deadlines (for the current visible month)
+  const tasksByDay = useMemo(() => {
+    const map = new Map<number, ProjectTask[]>();
+    allTasks.forEach(t => {
+      if (!t.due_date) return;
+      const d = new Date(t.due_date);
+      if (d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth) {
+        const dayNum = d.getDate();
+        const existing = map.get(dayNum) || [];
+        existing.push(t);
+        map.set(dayNum, existing);
+      }
+    });
+    return map;
+  }, [allTasks, currentYear, currentMonth]);
+
   const handleGoalUpdate = (id: string, updates: Partial<Goal>) => {
     updateGoalMutation.mutate({ id, updates });
   };

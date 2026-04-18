@@ -318,10 +318,13 @@ export default function Goals() {
     mutationFn: createTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Task created!');
       setIsCreateTaskDialogOpen(false);
       setNewTaskTitle('');
       setNewTaskDescription('');
+      setNewTaskDueDate('');
+      setTaskDialogProjectId(null);
     },
     onError: () => {
       toast.error('Failed to create task');
@@ -332,6 +335,7 @@ export default function Goals() {
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ProjectTask> }) => updateTask(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
     },
     onError: () => {
       toast.error('Failed to update task');
@@ -342,6 +346,7 @@ export default function Goals() {
     mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project_tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all_project_tasks'] });
       toast.success('Task deleted!');
     },
     onError: () => {

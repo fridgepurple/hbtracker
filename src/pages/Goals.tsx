@@ -401,6 +401,7 @@ export default function Goals() {
 
   const handleOpenCreateDialog = (type: GoalType) => {
     setCreateGoalType(type);
+    setRecurrenceCount(1);
     setIsCreateDialogOpen(true);
   };
 
@@ -410,8 +411,25 @@ export default function Goals() {
       return;
     }
 
+    const fullTitle = `${selectedEmoji} ${newGoalTitle}`;
+    const isRecurring = (createGoalType === 'weekly' || createGoalType === 'monthly') && recurrenceCount > 1;
+
+    if (isRecurring) {
+      createRecurringGoalsMutation.mutate({
+        title: fullTitle,
+        description: newGoalDescription || undefined,
+        goal_type: createGoalType as 'weekly' | 'monthly',
+        category: selectedCategory,
+        startYear: currentYear,
+        startMonth: currentMonth,
+        startWeek: createGoalType === 'weekly' ? currentWeek : undefined,
+        count: recurrenceCount,
+      });
+      return;
+    }
+
     createGoalMutation.mutate({
-      title: `${selectedEmoji} ${newGoalTitle}`,
+      title: fullTitle,
       description: newGoalDescription || undefined,
       month: currentMonth,
       year: currentYear,

@@ -523,12 +523,18 @@ export default function Goals() {
     return map;
   }, [allTasks, currentYear, currentMonth]);
 
-  const handleGoalUpdate = (id: string, updates: Partial<Goal>) => {
-    updateGoalMutation.mutate({ id, updates });
+  const handleGoalUpdate = (goal: Goal, updates: Partial<Goal>) => {
+    // Per-occurrence updates (toggle complete/progress) always apply only to this row.
+    updateGoalMutation.mutate({ id: goal.id, updates });
   };
 
-  const handleGoalDelete = (id: string) => {
-    deleteGoalMutation.mutate(id);
+  const handleGoalDelete = (goal: Goal) => {
+    if (goal.recurrence_id) {
+      // Ask user: this only, or this & future
+      setPendingDeleteGoal(goal);
+      return;
+    }
+    deleteGoalMutation.mutate(goal.id);
   };
 
   // Get goals for current tab

@@ -276,20 +276,36 @@ export default function Goals() {
     queryFn: fetchAllTasks,
   });
 
-  // Goals mutations
+  const resetCreateGoalForm = () => {
+    setIsCreateDialogOpen(false);
+    setNewGoalTitle('');
+    setNewGoalDescription('');
+    setSelectedEmoji('🎯');
+    setSelectedCategory('personal');
+    setRecurrenceCount(1);
+  };
+
   const createGoalMutation = useMutation({
     mutationFn: createGoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Goal created!');
-      setIsCreateDialogOpen(false);
-      setNewGoalTitle('');
-      setNewGoalDescription('');
-      setSelectedEmoji('🎯');
-      setSelectedCategory('personal');
+      resetCreateGoalForm();
     },
     onError: () => {
       toast.error('Failed to create goal');
+    },
+  });
+
+  const createRecurringGoalsMutation = useMutation({
+    mutationFn: createRecurringGoals,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      toast.success(`Created ${data?.length ?? ''} recurring goals!`);
+      resetCreateGoalForm();
+    },
+    onError: () => {
+      toast.error('Failed to create recurring goals');
     },
   });
 

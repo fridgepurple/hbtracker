@@ -922,6 +922,7 @@ export default function Goals() {
                           />
                         </TabsContent>
                       </Tabs>
+                    </Tabs>
                   </CardContent>
                 </Card>
               </div>

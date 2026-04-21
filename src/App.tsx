@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import MonthView from "./pages/MonthView";
 import HabitsManagement from "./pages/HabitsManagement";
 import Goals from "./pages/Goals";
+import CalendarPage from "./pages/Calendar";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/month" element={<ProtectedRoute><MonthView /></ProtectedRoute>} />
             <Route path="/habits" element={<ProtectedRoute><HabitsManagement /></ProtectedRoute>} />
             <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+            <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

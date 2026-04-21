@@ -28,6 +28,12 @@ export const categoryColors: Record<string, { bg: string; text: string }> = {
   'personal growth': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   'personal': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   'travel': { bg: 'bg-sky-500/20', text: 'text-sky-400' },
+
+  // Personal calendar
+  'appointments': { bg: 'bg-rose-500/20', text: 'text-rose-400' },
+  'self_care': { bg: 'bg-violet-500/20', text: 'text-violet-400' },
+  'self-care & rituals': { bg: 'bg-violet-500/20', text: 'text-violet-400' },
+  'home & cleaning': { bg: 'bg-amber-500/20', text: 'text-amber-400' },
 };
 
 export function getCategoryColor(category: string): { bg: string; text: string } {

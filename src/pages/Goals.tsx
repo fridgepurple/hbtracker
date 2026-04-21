@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, getWeek, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDate, addDays, subDays, isToday as isDateToday } from 'date-fns';
 import Layout from '@/components/Layout';
-import { fetchGoals, fetchAllGoalsForMonth, createGoal, updateGoal, deleteGoal, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
+import { fetchGoals, fetchAllGoalsForMonth, createGoal, createRecurringGoals, updateGoal, updateRecurringGoals, deleteGoal, deleteRecurringGoals, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
   fetchProjects, fetchAllTasks, createProject, updateProject, deleteProject,
   createTask, updateTask, deleteTask, Project, ProjectTask 

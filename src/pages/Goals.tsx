@@ -85,97 +85,118 @@ const taskStatusConfig = {
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Goal list component used inside each tab
-function GoalList({ goals, type, onAdd, onUpdate, onDelete, getGoalStatus }: {
+// Compact goal list — no progress slider, hides completed (shown in Completed tab)
+function GoalList({ goals, type, onAdd, onUpdate, onDelete }: {
   goals: Goal[];
   type: GoalType;
   onAdd: () => void;
-  onUpdate: (id: string, updates: Partial<Goal>) => void;
-  onDelete: (id: string) => void;
-  getGoalStatus: (progress: number) => { label: string; color: string; bgColor: string };
+  onUpdate: (goal: Goal, updates: Partial<Goal>) => void;
+  onDelete: (goal: Goal) => void;
 }) {
   const config = goalTypeConfig[type];
+  const activeGoals = goals.filter(g => !g.completed);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {type === 'daily' ? 'Today\'s Goals' : type === 'weekly' ? 'This Week\'s Goals' : 'Monthly Goals'}
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {type === 'daily' ? "Today's Goals" : type === 'weekly' ? "This Week" : "This Month"}
         </h4>
-        <Button size="sm" variant="ghost" onClick={onAdd} className="h-7 gap-1 text-xs">
-          <Plus className="h-3.5 w-3.5" />
+        <Button size="sm" variant="ghost" onClick={onAdd} className="h-6 gap-1 text-xs">
+          <Plus className="h-3 w-3" />
           Add
         </Button>
       </div>
-      {goals.length === 0 ? (
-        <div className="py-8 text-center border border-dashed border-border rounded-lg">
-          <p className="text-sm text-muted-foreground">No goals yet</p>
-          <Button variant="link" size="sm" onClick={onAdd} className="mt-1 text-xs">
-            Create your first goal
+      {activeGoals.length === 0 ? (
+        <div className="py-6 text-center border border-dashed border-border rounded-lg">
+          <p className="text-xs text-muted-foreground">No active goals</p>
+          <Button variant="link" size="sm" onClick={onAdd} className="mt-0.5 text-xs h-auto p-0">
+            Add one
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {goals.map((goal) => {
-            const goalStatus = getGoalStatus(goal.progress);
+        <div className="space-y-1">
+          {activeGoals.map((goal) => {
             const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
             return (
               <div
                 key={goal.id}
-                className="p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:bg-muted/30 transition-colors group"
               >
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    checked={goal.completed}
-                    onCheckedChange={(checked) =>
-                      onUpdate(goal.id, { completed: checked as boolean })
-                    }
-                    className={cn('mt-0.5', config.checkbox)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className={cn('text-[9px] px-1 py-0', catConfig.bgColor, catConfig.color)}>
-                        {catConfig.label}
-                      </Badge>
-                    </div>
-                    <p className={cn(
-                      'text-sm font-medium mt-1',
-                      goal.completed && 'line-through text-muted-foreground'
-                    )}>
-                      {goal.title}
-                    </p>
-                    {!goal.completed && (
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className={goalStatus.color}>{goalStatus.label}</span>
-                          <span className="text-muted-foreground">{goal.progress}%</span>
-                        </div>
-                        <Slider
-                          value={[goal.progress]}
-                          onValueChange={([value]) =>
-                            onUpdate(goal.id, { progress: value })
-                          }
-                          max={100}
-                          step={5}
-                          className={cn('h-1', config.slider)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(goal.id)}
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                <Checkbox
+                  checked={goal.completed}
+                  onCheckedChange={(checked) =>
+                    onUpdate(goal, { completed: checked as boolean, progress: checked ? 100 : goal.progress })
+                  }
+                  className={cn('h-4 w-4', config.checkbox)}
+                />
+                <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', catConfig.bgColor)} />
+                  <p className="text-sm truncate">{goal.title}</p>
+                  {goal.recurrence_id && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 shrink-0" title="Recurring">↻</Badge>
+                  )}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(goal)}
+                  className="h-5 w-5 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Completed goals list — read-only with reactivate / delete
+function CompletedGoalList({ goals, onUpdate, onDelete }: {
+  goals: Goal[];
+  onUpdate: (goal: Goal, updates: Partial<Goal>) => void;
+  onDelete: (goal: Goal) => void;
+}) {
+  const completed = goals.filter(g => g.completed);
+  if (completed.length === 0) {
+    return (
+      <div className="py-6 text-center border border-dashed border-border rounded-lg">
+        <p className="text-xs text-muted-foreground">Nothing completed yet</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {completed.map((goal) => {
+        const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
+        return (
+          <div
+            key={goal.id}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:bg-muted/30 transition-colors group"
+          >
+            <Checkbox
+              checked
+              onCheckedChange={() => onUpdate(goal, { completed: false })}
+              className="h-4 w-4"
+            />
+            <div className="flex-1 min-w-0 flex items-center gap-1.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', catConfig.bgColor)} />
+              <p className="text-sm truncate line-through text-muted-foreground">{goal.title}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(goal)}
+              className="h-5 w-5 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      })}
     </div>
   );
 }

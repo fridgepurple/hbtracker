@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, getWeek, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDate, addDays, subDays, isToday as isDateToday } from 'date-fns';
 import Layout from '@/components/Layout';
-import { fetchGoals, fetchAllGoalsForMonth, createGoal, updateGoal, deleteGoal, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
+import { fetchGoals, fetchAllGoalsForMonth, createGoal, createRecurringGoals, updateGoal, updateRecurringGoals, deleteGoal, deleteRecurringGoals, Goal, GoalType, GoalCategory } from '@/lib/goalQueries';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
   fetchProjects, fetchAllTasks, createProject, updateProject, deleteProject,
   createTask, updateTask, deleteTask, Project, ProjectTask 
@@ -84,97 +85,118 @@ const taskStatusConfig = {
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Goal list component used inside each tab
-function GoalList({ goals, type, onAdd, onUpdate, onDelete, getGoalStatus }: {
+// Compact goal list — no progress slider, hides completed (shown in Completed tab)
+function GoalList({ goals, type, onAdd, onUpdate, onDelete }: {
   goals: Goal[];
   type: GoalType;
   onAdd: () => void;
-  onUpdate: (id: string, updates: Partial<Goal>) => void;
-  onDelete: (id: string) => void;
-  getGoalStatus: (progress: number) => { label: string; color: string; bgColor: string };
+  onUpdate: (goal: Goal, updates: Partial<Goal>) => void;
+  onDelete: (goal: Goal) => void;
 }) {
   const config = goalTypeConfig[type];
+  const activeGoals = goals.filter(g => !g.completed);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {type === 'daily' ? 'Today\'s Goals' : type === 'weekly' ? 'This Week\'s Goals' : 'Monthly Goals'}
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {type === 'daily' ? "Today's Goals" : type === 'weekly' ? "This Week" : "This Month"}
         </h4>
-        <Button size="sm" variant="ghost" onClick={onAdd} className="h-7 gap-1 text-xs">
-          <Plus className="h-3.5 w-3.5" />
+        <Button size="sm" variant="ghost" onClick={onAdd} className="h-6 gap-1 text-xs">
+          <Plus className="h-3 w-3" />
           Add
         </Button>
       </div>
-      {goals.length === 0 ? (
-        <div className="py-8 text-center border border-dashed border-border rounded-lg">
-          <p className="text-sm text-muted-foreground">No goals yet</p>
-          <Button variant="link" size="sm" onClick={onAdd} className="mt-1 text-xs">
-            Create your first goal
+      {activeGoals.length === 0 ? (
+        <div className="py-6 text-center border border-dashed border-border rounded-lg">
+          <p className="text-xs text-muted-foreground">No active goals</p>
+          <Button variant="link" size="sm" onClick={onAdd} className="mt-0.5 text-xs h-auto p-0">
+            Add one
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {goals.map((goal) => {
-            const goalStatus = getGoalStatus(goal.progress);
+        <div className="space-y-1">
+          {activeGoals.map((goal) => {
             const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
             return (
               <div
                 key={goal.id}
-                className="p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:bg-muted/30 transition-colors group"
               >
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    checked={goal.completed}
-                    onCheckedChange={(checked) =>
-                      onUpdate(goal.id, { completed: checked as boolean })
-                    }
-                    className={cn('mt-0.5', config.checkbox)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className={cn('text-[9px] px-1 py-0', catConfig.bgColor, catConfig.color)}>
-                        {catConfig.label}
-                      </Badge>
-                    </div>
-                    <p className={cn(
-                      'text-sm font-medium mt-1',
-                      goal.completed && 'line-through text-muted-foreground'
-                    )}>
-                      {goal.title}
-                    </p>
-                    {!goal.completed && (
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className={goalStatus.color}>{goalStatus.label}</span>
-                          <span className="text-muted-foreground">{goal.progress}%</span>
-                        </div>
-                        <Slider
-                          value={[goal.progress]}
-                          onValueChange={([value]) =>
-                            onUpdate(goal.id, { progress: value })
-                          }
-                          max={100}
-                          step={5}
-                          className={cn('h-1', config.slider)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(goal.id)}
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                <Checkbox
+                  checked={goal.completed}
+                  onCheckedChange={(checked) =>
+                    onUpdate(goal, { completed: checked as boolean, progress: checked ? 100 : goal.progress })
+                  }
+                  className={cn('h-4 w-4', config.checkbox)}
+                />
+                <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', catConfig.bgColor)} />
+                  <p className="text-sm truncate">{goal.title}</p>
+                  {goal.recurrence_id && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 shrink-0" title="Recurring">↻</Badge>
+                  )}
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(goal)}
+                  className="h-5 w-5 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Completed goals list — read-only with reactivate / delete
+function CompletedGoalList({ goals, onUpdate, onDelete }: {
+  goals: Goal[];
+  onUpdate: (goal: Goal, updates: Partial<Goal>) => void;
+  onDelete: (goal: Goal) => void;
+}) {
+  const completed = goals.filter(g => g.completed);
+  if (completed.length === 0) {
+    return (
+      <div className="py-6 text-center border border-dashed border-border rounded-lg">
+        <p className="text-xs text-muted-foreground">Nothing completed yet</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {completed.map((goal) => {
+        const catConfig = categoryConfig[(goal.category as GoalCategory) || 'personal'];
+        return (
+          <div
+            key={goal.id}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border hover:bg-muted/30 transition-colors group"
+          >
+            <Checkbox
+              checked
+              onCheckedChange={() => onUpdate(goal, { completed: false })}
+              className="h-4 w-4"
+            />
+            <div className="flex-1 min-w-0 flex items-center gap-1.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', catConfig.bgColor)} />
+              <p className="text-sm truncate line-through text-muted-foreground">{goal.title}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(goal)}
+              className="h-5 w-5 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -192,6 +214,13 @@ export default function Goals() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [goalsViewTab, setGoalsViewTab] = useState<'active' | 'completed'>('active');
+
+  // Recurrence (only for weekly/monthly)
+  const [recurrenceCount, setRecurrenceCount] = useState<number>(1);
+
+  // Confirm dialogs for recurring goal edit/delete
+  const [pendingDeleteGoal, setPendingDeleteGoal] = useState<Goal | null>(null);
   
   // Projects state
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
@@ -247,20 +276,36 @@ export default function Goals() {
     queryFn: fetchAllTasks,
   });
 
-  // Goals mutations
+  const resetCreateGoalForm = () => {
+    setIsCreateDialogOpen(false);
+    setNewGoalTitle('');
+    setNewGoalDescription('');
+    setSelectedEmoji('🎯');
+    setSelectedCategory('personal');
+    setRecurrenceCount(1);
+  };
+
   const createGoalMutation = useMutation({
     mutationFn: createGoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast.success('Goal created!');
-      setIsCreateDialogOpen(false);
-      setNewGoalTitle('');
-      setNewGoalDescription('');
-      setSelectedEmoji('🎯');
-      setSelectedCategory('personal');
+      resetCreateGoalForm();
     },
     onError: () => {
       toast.error('Failed to create goal');
+    },
+  });
+
+  const createRecurringGoalsMutation = useMutation({
+    mutationFn: createRecurringGoals,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      toast.success(`Created ${data?.length ?? ''} recurring goals!`);
+      resetCreateGoalForm();
+    },
+    onError: () => {
+      toast.error('Failed to create recurring goals');
     },
   });
 
@@ -356,6 +401,7 @@ export default function Goals() {
 
   const handleOpenCreateDialog = (type: GoalType) => {
     setCreateGoalType(type);
+    setRecurrenceCount(1);
     setIsCreateDialogOpen(true);
   };
 
@@ -365,8 +411,25 @@ export default function Goals() {
       return;
     }
 
+    const fullTitle = `${selectedEmoji} ${newGoalTitle}`;
+    const isRecurring = (createGoalType === 'weekly' || createGoalType === 'monthly') && recurrenceCount > 1;
+
+    if (isRecurring) {
+      createRecurringGoalsMutation.mutate({
+        title: fullTitle,
+        description: newGoalDescription || undefined,
+        goal_type: createGoalType as 'weekly' | 'monthly',
+        category: selectedCategory,
+        startYear: currentYear,
+        startMonth: currentMonth,
+        startWeek: createGoalType === 'weekly' ? currentWeek : undefined,
+        count: recurrenceCount,
+      });
+      return;
+    }
+
     createGoalMutation.mutate({
-      title: `${selectedEmoji} ${newGoalTitle}`,
+      title: fullTitle,
       description: newGoalDescription || undefined,
       month: currentMonth,
       year: currentYear,
@@ -460,12 +523,18 @@ export default function Goals() {
     return map;
   }, [allTasks, currentYear, currentMonth]);
 
-  const handleGoalUpdate = (id: string, updates: Partial<Goal>) => {
-    updateGoalMutation.mutate({ id, updates });
+  const handleGoalUpdate = (goal: Goal, updates: Partial<Goal>) => {
+    // Per-occurrence updates (toggle complete/progress) always apply only to this row.
+    updateGoalMutation.mutate({ id: goal.id, updates });
   };
 
-  const handleGoalDelete = (id: string) => {
-    deleteGoalMutation.mutate(id);
+  const handleGoalDelete = (goal: Goal) => {
+    if (goal.recurrence_id) {
+      // Ask user: this only, or this & future
+      setPendingDeleteGoal(goal);
+      return;
+    }
+    deleteGoalMutation.mutate(goal.id);
   };
 
   // Get goals for current tab
@@ -807,36 +876,52 @@ export default function Goals() {
                         )}
                       </div>
 
-                      <TabsContent value="daily" className="mt-0">
-                        <GoalList
-                          goals={dailyGoals}
-                          type="daily"
-                          onAdd={() => handleOpenCreateDialog('daily')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
-                      <TabsContent value="weekly" className="mt-0">
-                        <GoalList
-                          goals={weeklyGoals}
-                          type="weekly"
-                          onAdd={() => handleOpenCreateDialog('weekly')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
-                      <TabsContent value="monthly" className="mt-0">
-                        <GoalList
-                          goals={monthlyGoals}
-                          type="monthly"
-                          onAdd={() => handleOpenCreateDialog('monthly')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
+                      {/* Active / Completed sub-tabs */}
+                      <Tabs value={goalsViewTab} onValueChange={(v) => setGoalsViewTab(v as 'active' | 'completed')}>
+                        <TabsList className="w-full grid grid-cols-2 h-8 mb-3">
+                          <TabsTrigger value="active" className="text-[11px]">Active</TabsTrigger>
+                          <TabsTrigger value="completed" className="text-[11px]">
+                            Completed ({currentGoals.filter(g => g.completed).length})
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="active" className="mt-0">
+                          {activeTab === 'daily' && (
+                            <GoalList
+                              goals={dailyGoals}
+                              type="daily"
+                              onAdd={() => handleOpenCreateDialog('daily')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                          {activeTab === 'weekly' && (
+                            <GoalList
+                              goals={weeklyGoals}
+                              type="weekly"
+                              onAdd={() => handleOpenCreateDialog('weekly')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                          {activeTab === 'monthly' && (
+                            <GoalList
+                              goals={monthlyGoals}
+                              type="monthly"
+                              onAdd={() => handleOpenCreateDialog('monthly')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="completed" className="mt-0">
+                          <CompletedGoalList
+                            goals={currentGoals}
+                            onUpdate={handleGoalUpdate}
+                            onDelete={handleGoalDelete}
+                          />
+                        </TabsContent>
+                      </Tabs>
                     </Tabs>
                   </CardContent>
                 </Card>
@@ -1308,6 +1393,34 @@ export default function Goals() {
                 />
               </div>
 
+              {/* Recurrence — only for weekly / monthly */}
+              {(createGoalType === 'weekly' || createGoalType === 'monthly') && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Repeat</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={52}
+                      value={recurrenceCount}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value || '1', 10);
+                        setRecurrenceCount(Math.max(1, Math.min(52, isNaN(v) ? 1 : v)));
+                      }}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {createGoalType === 'weekly' ? (recurrenceCount === 1 ? 'week' : 'weeks') : (recurrenceCount === 1 ? 'month' : 'months')}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {recurrenceCount > 1
+                      ? `Will create ${recurrenceCount} ${createGoalType === 'weekly' ? 'weekly' : 'monthly'} occurrences starting now.`
+                      : 'Set higher than 1 to repeat this goal.'}
+                  </p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">
@@ -1324,6 +1437,55 @@ export default function Goals() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Confirm dialog for deleting a recurring goal */}
+        <AlertDialog
+          open={!!pendingDeleteGoal}
+          onOpenChange={(open) => { if (!open) setPendingDeleteGoal(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete recurring goal?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This goal repeats. Choose what to delete.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (pendingDeleteGoal) {
+                    deleteGoalMutation.mutate(pendingDeleteGoal.id);
+                  }
+                  setPendingDeleteGoal(null);
+                }}
+              >
+                Only this occurrence
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  const g = pendingDeleteGoal;
+                  if (g && g.recurrence_id) {
+                    try {
+                      await deleteRecurringGoals(g.recurrence_id, g.created_at);
+                      queryClient.invalidateQueries({ queryKey: ['goals'] });
+                      toast.success('Recurring goals deleted');
+                    } catch {
+                      toast.error('Failed to delete recurring goals');
+                    }
+                  }
+                  setPendingDeleteGoal(null);
+                }}
+              >
+                This and all future occurrences
+              </Button>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

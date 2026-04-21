@@ -1393,6 +1393,34 @@ export default function Goals() {
                 />
               </div>
 
+              {/* Recurrence — only for weekly / monthly */}
+              {(createGoalType === 'weekly' || createGoalType === 'monthly') && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Repeat</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={52}
+                      value={recurrenceCount}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value || '1', 10);
+                        setRecurrenceCount(Math.max(1, Math.min(52, isNaN(v) ? 1 : v)));
+                      }}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {createGoalType === 'weekly' ? (recurrenceCount === 1 ? 'week' : 'weeks') : (recurrenceCount === 1 ? 'month' : 'months')}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {recurrenceCount > 1
+                      ? `Will create ${recurrenceCount} ${createGoalType === 'weekly' ? 'weekly' : 'monthly'} occurrences starting now.`
+                      : 'Set higher than 1 to repeat this goal.'}
+                  </p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">

@@ -1,0 +1,766 @@
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  CalendarClock,
+  Briefcase,
+  Home as HomeIcon,
+  Sparkles,
+  GraduationCap,
+  Stethoscope,
+  User as UserIcon,
+} from 'lucide-react';
+import Layout from '@/components/Layout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import {
+  CalendarEvent,
+  EventCategory,
+  EventRecurrence,
+  fetchEventsInRange,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  deleteRecurringEvents,
+} from '@/lib/eventQueries';
+
+// ─── Time grid config ───────────────────────────────────────────────
+const HOUR_START = 6; // 6 AM
+const HOUR_END = 23; // 11 PM (last hour shown is 22:00–23:00)
+const HOUR_HEIGHT = 48; // px per hour
+const TOTAL_HOURS = HOUR_END - HOUR_START;
+
+// ─── Categories ─────────────────────────────────────────────────────
+const CATEGORY_OPTIONS: {
+  value: EventCategory;
+  label: string;
+  icon: typeof Briefcase;
+  swatch: string; // tailwind bg
+  bar: string; // event block bg
+  border: string; // event block border
+  text: string; // event block text
+}[] = [
+  {
+    value: 'appointments',
+    label: 'Appointments',
+    icon: Stethoscope,
+    swatch: 'bg-rose-500',
+    bar: 'bg-rose-500/20 dark:bg-rose-500/30',
+    border: 'border-rose-500/60',
+    text: 'text-rose-700 dark:text-rose-200',
+  },
+  {
+    value: 'home',
+    label: 'Home & cleaning',
+    icon: HomeIcon,
+    swatch: 'bg-amber-500',
+    bar: 'bg-amber-500/20 dark:bg-amber-500/30',
+    border: 'border-amber-500/60',
+    text: 'text-amber-700 dark:text-amber-200',
+  },
+  {
+    value: 'self_care',
+    label: 'Self-care & rituals',
+    icon: Sparkles,
+    swatch: 'bg-violet-500',
+    bar: 'bg-violet-500/20 dark:bg-violet-500/30',
+    border: 'border-violet-500/60',
+    text: 'text-violet-700 dark:text-violet-200',
+  },
+  {
+    value: 'school',
+    label: 'School',
+    icon: GraduationCap,
+    swatch: 'bg-indigo-500',
+    bar: 'bg-indigo-500/20 dark:bg-indigo-500/30',
+    border: 'border-indigo-500/60',
+    text: 'text-indigo-700 dark:text-indigo-200',
+  },
+  {
+    value: 'personal',
+    label: 'Personal',
+    icon: UserIcon,
+    swatch: 'bg-yellow-500',
+    bar: 'bg-yellow-500/20 dark:bg-yellow-500/30',
+    border: 'border-yellow-500/60',
+    text: 'text-yellow-700 dark:text-yellow-200',
+  },
+];
+
+const getCatStyle = (c: EventCategory) =>
+  CATEGORY_OPTIONS.find(o => o.value === c) ?? CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
+
+// ─── Date helpers ───────────────────────────────────────────────────
+const isoDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const startOfWeekMonday = (d: Date) => {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  const dow = r.getDay(); // 0 Sun .. 6 Sat
+  const diff = (dow + 6) % 7; // days since Monday
+  r.setDate(r.getDate() - diff);
+  return r;
+};
+
+const addDays = (d: Date, n: number) => {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+};
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const fmtTime = (t: string | null) => {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  return `${parseInt(h, 10)}:${m}`;
+};
+
+const minutesFromTime = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// ─── Page ───────────────────────────────────────────────────────────
+export default function CalendarPage() {
+  const queryClient = useQueryClient();
+  const [anchor, setAnchor] = useState<Date>(new Date());
+  const weekStart = useMemo(() => startOfWeekMonday(anchor), [anchor]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
+  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+
+  const [activeCats, setActiveCats] = useState<Set<EventCategory>>(
+    new Set(CATEGORY_OPTIONS.map(c => c.value)),
+  );
+
+  const { data: events = [] } = useQuery({
+    queryKey: ['events', isoDate(weekStart), isoDate(weekEnd)],
+    queryFn: () => fetchEventsInRange(weekStart, weekEnd),
+  });
+
+  const visibleEvents = useMemo(
+    () => events.filter(e => activeCats.has(e.category)),
+    [events, activeCats],
+  );
+
+  // Group by day index 0..6
+  const eventsByDay = useMemo(() => {
+    const map: CalendarEvent[][] = Array.from({ length: 7 }, () => []);
+    visibleEvents.forEach(e => {
+      // event date is YYYY-MM-DD; parse local
+      const [y, m, d] = e.date.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const idx = weekDays.findIndex(w => sameDay(w, dt));
+      if (idx >= 0) map[idx].push(e);
+    });
+    return map;
+  }, [visibleEvents, weekDays]);
+
+  // ─── Dialog state ─────────────────────────────────────────────────
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<CalendarEvent | null>(null);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    category: 'personal' as EventCategory,
+    date: isoDate(new Date()),
+    allDay: false,
+    start_time: '09:00',
+    end_time: '10:00',
+    recurrence: 'none' as EventRecurrence,
+    recurrence_count: 1,
+  });
+
+  const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
+
+  const openCreate = (date: Date, hour?: number) => {
+    setEditing(null);
+    const defaultStart = hour !== undefined ? `${String(hour).padStart(2, '0')}:00` : '09:00';
+    const defaultEnd =
+      hour !== undefined ? `${String(Math.min(hour + 1, 23)).padStart(2, '0')}:00` : '10:00';
+    setForm({
+      title: '',
+      description: '',
+      category: 'personal',
+      date: isoDate(date),
+      allDay: false,
+      start_time: defaultStart,
+      end_time: defaultEnd,
+      recurrence: 'none',
+      recurrence_count: 1,
+    });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (e: CalendarEvent) => {
+    setEditing(e);
+    setForm({
+      title: e.title,
+      description: e.description ?? '',
+      category: e.category,
+      date: e.date,
+      allDay: !e.start_time,
+      start_time: e.start_time?.slice(0, 5) ?? '09:00',
+      end_time: e.end_time?.slice(0, 5) ?? '10:00',
+      recurrence: e.recurrence,
+      recurrence_count: e.recurrence_count ?? 1,
+    });
+    setDialogOpen(true);
+  };
+
+  const createMutation = useMutation({
+    mutationFn: createEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event created');
+      setDialogOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Could not create event'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) => updateEvent(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event updated');
+      setDialogOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Could not update event'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteEvent(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Event deleted');
+    },
+  });
+
+  const deleteSeriesMutation = useMutation({
+    mutationFn: ({ recurrence_id, fromDate }: { recurrence_id: string; fromDate: string }) =>
+      deleteRecurringEvents(recurrence_id, fromDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Series deleted');
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!form.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    const [y, m, d] = form.date.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+
+    const start_time = form.allDay ? null : `${form.start_time}:00`;
+    const end_time = form.allDay ? null : `${form.end_time}:00`;
+
+    if (editing) {
+      updateMutation.mutate({
+        id: editing.id,
+        updates: {
+          title: form.title.trim(),
+          description: form.description.trim() || null,
+          category: form.category,
+          date: form.date,
+          start_time,
+          end_time,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        category: form.category,
+        date,
+        start_time,
+        end_time,
+        recurrence: form.recurrence,
+        recurrence_count: form.recurrence === 'none' ? 1 : Math.max(1, Math.min(52, form.recurrence_count)),
+      });
+    }
+  };
+
+  const handleDeleteRequest = (e: CalendarEvent) => {
+    if (e.recurrence_id) {
+      setPendingDelete(e);
+    } else {
+      deleteMutation.mutate(e.id);
+      setDialogOpen(false);
+    }
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────
+  const today = new Date();
+
+  return (
+    <Layout>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">Personal Calendar</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, -7))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>
+              Today
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, 7))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button size="sm" onClick={() => openCreate(new Date())}>
+              <Plus className="h-4 w-4 mr-1" /> New event
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4">
+          {/* Sidebar */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Week of</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-base font-semibold">
+                  {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
+                  – {weekEnd.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {CATEGORY_OPTIONS.map(c => {
+                  const active = activeCats.has(c.value);
+                  return (
+                    <button
+                      key={c.value}
+                      onClick={() => {
+                        const next = new Set(activeCats);
+                        if (active) next.delete(c.value);
+                        else next.add(c.value);
+                        setActiveCats(next);
+                      }}
+                      className={cn(
+                        'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+                        active ? 'bg-accent' : 'opacity-50 hover:opacity-80',
+                      )}
+                    >
+                      <span className={cn('h-2.5 w-2.5 rounded-full', c.swatch)} />
+                      <c.icon className="h-3.5 w-3.5" />
+                      <span className="flex-1 text-left">{c.label}</span>
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Week grid */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              {/* Day header row */}
+              <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b bg-muted/30">
+                <div className="border-r" />
+                {weekDays.map((d, i) => {
+                  const isToday = sameDay(d, today);
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        'px-2 py-2 text-center border-r last:border-r-0',
+                        isToday && 'bg-primary/10',
+                      )}
+                    >
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {WEEKDAY_LABELS[i]}
+                      </div>
+                      <div
+                        className={cn(
+                          'mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold',
+                          isToday && 'bg-primary text-primary-foreground',
+                        )}
+                      >
+                        {d.getDate()}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* All-day strip */}
+              <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b">
+                <div className="text-[10px] text-muted-foreground px-1 py-1 text-right border-r">
+                  all-day
+                </div>
+                {weekDays.map((d, i) => {
+                  const allDay = eventsByDay[i].filter(e => !e.start_time);
+                  return (
+                    <div key={i} className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1">
+                      {allDay.map(e => {
+                        const cs = getCatStyle(e.category);
+                        return (
+                          <button
+                            key={e.id}
+                            onClick={() => openEdit(e)}
+                            className={cn(
+                              'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate',
+                              cs.bar,
+                              cs.border,
+                              cs.text,
+                            )}
+                            title={e.title}
+                          >
+                            {e.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Hourly grid */}
+              <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
+                {/* Hour labels */}
+                <div className="border-r">
+                  {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
+                    <div
+                      key={h}
+                      className="text-[10px] text-muted-foreground text-right pr-1"
+                      style={{ height: HOUR_HEIGHT }}
+                    >
+                      {h}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day columns */}
+                {weekDays.map((d, dayIdx) => {
+                  const timed = eventsByDay[dayIdx].filter(e => e.start_time);
+                  const isToday = sameDay(d, today);
+                  return (
+                    <div
+                      key={dayIdx}
+                      className={cn(
+                        'relative border-r last:border-r-0',
+                        isToday && 'bg-primary/[0.03]',
+                      )}
+                      style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
+                    >
+                      {/* hour rows + click target */}
+                      {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
+                        <div
+                          key={h}
+                          onClick={() => openCreate(d, h)}
+                          className="border-b border-border/40 cursor-pointer hover:bg-accent/30 transition-colors"
+                          style={{ height: HOUR_HEIGHT }}
+                        />
+                      ))}
+
+                      {/* Events */}
+                      {timed.map(e => {
+                        const startMin = minutesFromTime(e.start_time!);
+                        const endMin = e.end_time
+                          ? minutesFromTime(e.end_time)
+                          : startMin + 60;
+                        const top = ((startMin - HOUR_START * 60) / 60) * HOUR_HEIGHT;
+                        const height = Math.max(
+                          18,
+                          ((endMin - startMin) / 60) * HOUR_HEIGHT - 2,
+                        );
+                        if (top + height < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
+                        const cs = getCatStyle(e.category);
+                        return (
+                          <button
+                            key={e.id}
+                            onClick={ev => {
+                              ev.stopPropagation();
+                              openEdit(e);
+                            }}
+                            className={cn(
+                              'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm',
+                              cs.bar,
+                              cs.border,
+                              cs.text,
+                            )}
+                            style={{ top: Math.max(0, top), height }}
+                            title={`${e.title} • ${fmtTime(e.start_time)}${
+                              e.end_time ? `–${fmtTime(e.end_time)}` : ''
+                            }`}
+                          >
+                            <div className="font-medium truncate leading-tight">{e.title}</div>
+                            <div className="opacity-80 truncate leading-tight">
+                              {fmtTime(e.start_time)}
+                              {e.end_time && ` – ${fmtTime(e.end_time)}`}
+                              {e.recurrence_id && ' · ↻'}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit event' : 'New event'}</DialogTitle>
+            <DialogDescription>
+              {editing ? 'Update or remove this event.' : 'Plan something on your personal calendar.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-title">Title</Label>
+              <Input
+                id="ev-title"
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="Doctor appointment, Cleaning, Journaling…"
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Select
+                  value={form.category}
+                  onValueChange={v => setForm({ ...form, category: v as EventCategory })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {CATEGORY_OPTIONS.map(c => (
+                      <SelectItem key={c.value} value={c.value}>
+                        <span className="flex items-center gap-2">
+                          <span className={cn('h-2 w-2 rounded-full', c.swatch)} />
+                          {c.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-date">Date</Label>
+                <Input
+                  id="ev-date"
+                  type="date"
+                  value={form.date}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <Label htmlFor="ev-allday" className="cursor-pointer">All-day</Label>
+              <Switch
+                id="ev-allday"
+                checked={form.allDay}
+                onCheckedChange={v => setForm({ ...form, allDay: v })}
+              />
+            </div>
+
+            {!form.allDay && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ev-start">Start</Label>
+                  <Input
+                    id="ev-start"
+                    type="time"
+                    value={form.start_time}
+                    onChange={e => setForm({ ...form, start_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ev-end">End</Label>
+                  <Input
+                    id="ev-end"
+                    type="time"
+                    value={form.end_time}
+                    onChange={e => setForm({ ...form, end_time: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {!editing && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Repeat</Label>
+                  <Select
+                    value={form.recurrence}
+                    onValueChange={v => setForm({ ...form, recurrence: v as EventRecurrence })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="none">Does not repeat</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.recurrence !== 'none' && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-count">Occurrences</Label>
+                    <Input
+                      id="ev-count"
+                      type="number"
+                      min={1}
+                      max={52}
+                      value={form.recurrence_count}
+                      onChange={e =>
+                        setForm({ ...form, recurrence_count: parseInt(e.target.value || '1', 10) })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-desc">Notes (optional)</Label>
+              <Textarea
+                id="ev-desc"
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between">
+            {editing ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => handleDeleteRequest(editing)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Delete
+              </Button>
+            ) : <span />}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+                {editing ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recurring delete prompt */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={o => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete recurring event</AlertDialogTitle>
+            <AlertDialogDescription>
+              This event is part of a series. What would you like to delete?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingDelete) {
+                  deleteMutation.mutate(pendingDelete.id);
+                  setPendingDelete(null);
+                  setDialogOpen(false);
+                }
+              }}
+            >
+              Only this occurrence
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete?.recurrence_id) {
+                  deleteSeriesMutation.mutate({
+                    recurrence_id: pendingDelete.recurrence_id,
+                    fromDate: pendingDelete.date,
+                  });
+                  setPendingDelete(null);
+                  setDialogOpen(false);
+                }
+              }}
+            >
+              This & all future
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Layout>
+  );
+}

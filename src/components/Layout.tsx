@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Target,
   ChevronDown,
-  FolderKanban
+  FolderKanban,
+  CalendarClock
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -104,6 +105,17 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <Target className="h-4 w-4" />
                 <span>Goals & Projects</span>
+              </Button>
+            </Link>
+
+            {/* Personal Calendar */}
+            <Link to="/calendar">
+              <Button
+                variant={location.pathname === '/calendar' ? 'default' : 'ghost'}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <CalendarClock className="h-4 w-4" />
+                <span>Calendar</span>
               </Button>
             </Link>
           </div>

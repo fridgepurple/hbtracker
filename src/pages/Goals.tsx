@@ -876,37 +876,52 @@ export default function Goals() {
                         )}
                       </div>
 
-                      <TabsContent value="daily" className="mt-0">
-                        <GoalList
-                          goals={dailyGoals}
-                          type="daily"
-                          onAdd={() => handleOpenCreateDialog('daily')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
-                      <TabsContent value="weekly" className="mt-0">
-                        <GoalList
-                          goals={weeklyGoals}
-                          type="weekly"
-                          onAdd={() => handleOpenCreateDialog('weekly')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
-                      <TabsContent value="monthly" className="mt-0">
-                        <GoalList
-                          goals={monthlyGoals}
-                          type="monthly"
-                          onAdd={() => handleOpenCreateDialog('monthly')}
-                          onUpdate={handleGoalUpdate}
-                          onDelete={handleGoalDelete}
-                          getGoalStatus={getGoalStatus}
-                        />
-                      </TabsContent>
-                    </Tabs>
+                      {/* Active / Completed sub-tabs */}
+                      <Tabs value={goalsViewTab} onValueChange={(v) => setGoalsViewTab(v as 'active' | 'completed')}>
+                        <TabsList className="w-full grid grid-cols-2 h-8 mb-3">
+                          <TabsTrigger value="active" className="text-[11px]">Active</TabsTrigger>
+                          <TabsTrigger value="completed" className="text-[11px]">
+                            Completed ({currentGoals.filter(g => g.completed).length})
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="active" className="mt-0">
+                          {activeTab === 'daily' && (
+                            <GoalList
+                              goals={dailyGoals}
+                              type="daily"
+                              onAdd={() => handleOpenCreateDialog('daily')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                          {activeTab === 'weekly' && (
+                            <GoalList
+                              goals={weeklyGoals}
+                              type="weekly"
+                              onAdd={() => handleOpenCreateDialog('weekly')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                          {activeTab === 'monthly' && (
+                            <GoalList
+                              goals={monthlyGoals}
+                              type="monthly"
+                              onAdd={() => handleOpenCreateDialog('monthly')}
+                              onUpdate={handleGoalUpdate}
+                              onDelete={handleGoalDelete}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="completed" className="mt-0">
+                          <CompletedGoalList
+                            goals={currentGoals}
+                            onUpdate={handleGoalUpdate}
+                            onDelete={handleGoalDelete}
+                          />
+                        </TabsContent>
+                      </Tabs>
                   </CardContent>
                 </Card>
               </div>

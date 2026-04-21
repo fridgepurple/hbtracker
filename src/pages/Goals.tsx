@@ -1437,6 +1437,55 @@ export default function Goals() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Confirm dialog for deleting a recurring goal */}
+        <AlertDialog
+          open={!!pendingDeleteGoal}
+          onOpenChange={(open) => { if (!open) setPendingDeleteGoal(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete recurring goal?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This goal repeats. Choose what to delete.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (pendingDeleteGoal) {
+                    deleteGoalMutation.mutate(pendingDeleteGoal.id);
+                  }
+                  setPendingDeleteGoal(null);
+                }}
+              >
+                Only this occurrence
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  const g = pendingDeleteGoal;
+                  if (g && g.recurrence_id) {
+                    try {
+                      await deleteRecurringGoals(g.recurrence_id, g.created_at);
+                      queryClient.invalidateQueries({ queryKey: ['goals'] });
+                      toast.success('Recurring goals deleted');
+                    } catch {
+                      toast.error('Failed to delete recurring goals');
+                    }
+                  }
+                  setPendingDeleteGoal(null);
+                }}
+              >
+                This and all future occurrences
+              </Button>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

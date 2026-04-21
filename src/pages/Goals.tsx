@@ -214,6 +214,13 @@ export default function Goals() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [goalsViewTab, setGoalsViewTab] = useState<'active' | 'completed'>('active');
+
+  // Recurrence (only for weekly/monthly)
+  const [recurrenceCount, setRecurrenceCount] = useState<number>(1);
+
+  // Confirm dialogs for recurring goal edit/delete
+  const [pendingDeleteGoal, setPendingDeleteGoal] = useState<Goal | null>(null);
   
   // Projects state
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);

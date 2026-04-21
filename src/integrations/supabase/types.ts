@@ -25,6 +25,7 @@ export type Database = {
           id: string
           month: number
           progress: number
+          recurrence_id: string | null
           title: string
           user_id: string
           week: number | null
@@ -40,6 +41,7 @@ export type Database = {
           id?: string
           month: number
           progress?: number
+          recurrence_id?: string | null
           title: string
           user_id: string
           week?: number | null
@@ -55,6 +57,7 @@ export type Database = {
           id?: string
           month?: number
           progress?: number
+          recurrence_id?: string | null
           title?: string
           user_id?: string
           week?: number | null

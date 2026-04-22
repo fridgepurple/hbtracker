@@ -25,6 +25,7 @@ export interface ProjectTask {
   priority: string;
   due_date: string | null;
   completed_at: string | null;
+  display_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,7 @@ export const fetchProjectTasks = async (projectId: string): Promise<ProjectTask[
     .from('project_tasks')
     .select('*')
     .eq('project_id', projectId)
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true });
 
   if (error) throw error;
@@ -54,10 +56,25 @@ export const fetchAllTasks = async (): Promise<ProjectTask[]> => {
   const { data, error } = await supabase
     .from('project_tasks')
     .select('*')
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true });
 
   if (error) throw error;
   return (data || []) as ProjectTask[];
+};
+
+export const reorderTasks = async (
+  updates: { id: string; project_id: string; display_order: number }[]
+): Promise<void> => {
+  // Update each task's display_order (and project_id if it moved across projects)
+  await Promise.all(
+    updates.map(u =>
+      supabase
+        .from('project_tasks')
+        .update({ project_id: u.project_id, display_order: u.display_order })
+        .eq('id', u.id)
+    )
+  );
 };
 
 export const createProject = async (project: {

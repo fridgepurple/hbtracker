@@ -295,6 +295,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           description: string | null
+          display_order: number
           due_date: string | null
           id: string
           priority: string | null
@@ -308,6 +309,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          display_order?: number
           due_date?: string | null
           id?: string
           priority?: string | null
@@ -321,6 +323,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          display_order?: number
           due_date?: string | null
           id?: string
           priority?: string | null

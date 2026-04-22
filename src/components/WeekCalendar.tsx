@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Plus,
   Trash2,
-  CalendarClock,
   Briefcase,
   Home as HomeIcon,
   Sparkles,
@@ -13,7 +12,6 @@ import {
   Stethoscope,
   User as UserIcon,
 } from 'lucide-react';
-import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,6 +43,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -59,20 +63,20 @@ import {
 } from '@/lib/eventQueries';
 
 // ─── Time grid config ───────────────────────────────────────────────
-const HOUR_START = 6; // 6 AM
-const HOUR_END = 23; // 11 PM (last hour shown is 22:00–23:00)
-const HOUR_HEIGHT = 48; // px per hour
+const HOUR_START = 6;
+const HOUR_END = 23;
+const HOUR_HEIGHT = 48;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
 // ─── Categories ─────────────────────────────────────────────────────
-const CATEGORY_OPTIONS: {
+export const CATEGORY_OPTIONS: {
   value: EventCategory;
   label: string;
   icon: typeof Briefcase;
-  swatch: string; // tailwind bg
-  bar: string; // event block bg
-  border: string; // event block border
-  text: string; // event block text
+  swatch: string;
+  bar: string;
+  border: string;
+  text: string;
 }[] = [
   {
     value: 'appointments',
@@ -135,8 +139,8 @@ const isoDate = (d: Date) => {
 const startOfWeekMonday = (d: Date) => {
   const r = new Date(d);
   r.setHours(0, 0, 0, 0);
-  const dow = r.getDay(); // 0 Sun .. 6 Sat
-  const diff = (dow + 6) % 7; // days since Monday
+  const dow = r.getDay();
+  const diff = (dow + 6) % 7;
   r.setDate(r.getDate() - diff);
   return r;
 };
@@ -165,8 +169,50 @@ const minutesFromTime = (t: string) => {
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// ─── Page ───────────────────────────────────────────────────────────
-export default function CalendarPage() {
+// ─── Hover popup for an event ───────────────────────────────────────
+function EventHoverPopup({ event }: { event: CalendarEvent }) {
+  const cs = getCatStyle(event.category);
+  const Icon = cs.icon;
+  const recurrenceLabel =
+    event.recurrence === 'daily' ? 'Daily'
+    : event.recurrence === 'weekly' ? 'Weekly'
+    : event.recurrence === 'monthly' ? 'Monthly'
+    : null;
+  return (
+    <HoverCardContent side="top" align="start" className="w-72 p-3">
+      <div className="space-y-2">
+        <div className="flex items-start gap-2">
+          <span className={cn('mt-0.5 h-2.5 w-2.5 rounded-full shrink-0', cs.swatch)} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm leading-snug">{event.title}</p>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Icon className="h-3 w-3" />
+              <span>{cs.label}</span>
+              {recurrenceLabel && (
+                <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 h-3.5">
+                  ↻ {recurrenceLabel}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {event.start_time
+            ? `${fmtTime(event.start_time)}${event.end_time ? ` – ${fmtTime(event.end_time)}` : ''}`
+            : 'All day'}
+        </div>
+        {event.description && (
+          <p className="text-xs leading-relaxed pt-1 border-t border-border whitespace-pre-wrap">
+            {event.description}
+          </p>
+        )}
+      </div>
+    </HoverCardContent>
+  );
+}
+
+// ─── WeekCalendar ───────────────────────────────────────────────────
+export default function WeekCalendar() {
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState<Date>(new Date());
   const weekStart = useMemo(() => startOfWeekMonday(anchor), [anchor]);
@@ -190,11 +236,9 @@ export default function CalendarPage() {
     [events, activeCats],
   );
 
-  // Group by day index 0..6
   const eventsByDay = useMemo(() => {
     const map: CalendarEvent[][] = Array.from({ length: 7 }, () => []);
     visibleEvents.forEach(e => {
-      // event date is YYYY-MM-DD; parse local
       const [y, m, d] = e.date.split('-').map(Number);
       const dt = new Date(y, m - 1, d);
       const idx = weekDays.findIndex(w => sameDay(w, dt));
@@ -262,17 +306,18 @@ export default function CalendarPage() {
       toast.success('Event created');
       setDialogOpen(false);
     },
-    onError: (e: any) => toast.error(e.message ?? 'Could not create event'),
+    onError: (e: Error) => toast.error(e.message ?? 'Could not create event'),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: any }) => updateEvent(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<CalendarEvent> }) =>
+      updateEvent(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       toast.success('Event updated');
       setDialogOpen(false);
     },
-    onError: (e: any) => toast.error(e.message ?? 'Could not update event'),
+    onError: (e: Error) => toast.error(e.message ?? 'Could not update event'),
   });
 
   const deleteMutation = useMutation({
@@ -316,6 +361,7 @@ export default function CalendarPage() {
         },
       });
     } else {
+      const maxOcc = form.recurrence === 'daily' ? 366 : 52;
       createMutation.mutate({
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -324,7 +370,8 @@ export default function CalendarPage() {
         start_time,
         end_time,
         recurrence: form.recurrence,
-        recurrence_count: form.recurrence === 'none' ? 1 : Math.max(1, Math.min(52, form.recurrence_count)),
+        recurrence_count:
+          form.recurrence === 'none' ? 1 : Math.max(1, Math.min(maxOcc, form.recurrence_count)),
       });
     }
   };
@@ -338,229 +385,219 @@ export default function CalendarPage() {
     }
   };
 
-  // ─── Render ───────────────────────────────────────────────────────
   const today = new Date();
 
   return (
-    <Layout>
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Personal Calendar</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, -7))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>
-              Today
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, 7))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button size="sm" onClick={() => openCreate(new Date())}>
-              <Plus className="h-4 w-4 mr-1" /> New event
-            </Button>
-          </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="text-sm font-semibold">
+          {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
+          –{' '}
+          {weekEnd.toLocaleDateString(undefined, {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })}
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, -7))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>
+            Today
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, 7))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button size="sm" onClick={() => openCreate(new Date())}>
+            <Plus className="h-4 w-4 mr-1" /> New event
+          </Button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4">
-          {/* Sidebar */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Week of</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-base font-semibold">
-                  {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
-                  – {weekEnd.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-                </div>
-              </CardContent>
-            </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-4">
+        {/* Categories sidebar */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Categories</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {CATEGORY_OPTIONS.map(c => {
+              const active = activeCats.has(c.value);
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => {
+                    const next = new Set(activeCats);
+                    if (active) next.delete(c.value);
+                    else next.add(c.value);
+                    setActiveCats(next);
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                    active ? 'bg-accent' : 'opacity-50 hover:opacity-80',
+                  )}
+                >
+                  <span className={cn('h-2.5 w-2.5 rounded-full', c.swatch)} />
+                  <c.icon className="h-3.5 w-3.5" />
+                  <span className="flex-1 text-left">{c.label}</span>
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Categories</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {CATEGORY_OPTIONS.map(c => {
-                  const active = activeCats.has(c.value);
-                  return (
-                    <button
-                      key={c.value}
-                      onClick={() => {
-                        const next = new Set(activeCats);
-                        if (active) next.delete(c.value);
-                        else next.add(c.value);
-                        setActiveCats(next);
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                        active ? 'bg-accent' : 'opacity-50 hover:opacity-80',
-                      )}
-                    >
-                      <span className={cn('h-2.5 w-2.5 rounded-full', c.swatch)} />
-                      <c.icon className="h-3.5 w-3.5" />
-                      <span className="flex-1 text-left">{c.label}</span>
-                    </button>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Week grid */}
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              {/* Day header row */}
-              <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b bg-muted/30">
-                <div className="border-r" />
-                {weekDays.map((d, i) => {
-                  const isToday = sameDay(d, today);
-                  return (
+        {/* Week grid */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            {/* Day header row */}
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b bg-muted/30">
+              <div className="border-r" />
+              {weekDays.map((d, i) => {
+                const isToday = sameDay(d, today);
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'px-2 py-2 text-center border-r last:border-r-0',
+                      isToday && 'bg-primary/10',
+                    )}
+                  >
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {WEEKDAY_LABELS[i]}
+                    </div>
                     <div
-                      key={i}
                       className={cn(
-                        'px-2 py-2 text-center border-r last:border-r-0',
-                        isToday && 'bg-primary/10',
+                        'mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold',
+                        isToday && 'bg-primary text-primary-foreground',
                       )}
                     >
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {WEEKDAY_LABELS[i]}
-                      </div>
+                      {d.getDate()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* All-day strip */}
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b">
+              <div className="text-[10px] text-muted-foreground px-1 py-1 text-right border-r">
+                all-day
+              </div>
+              {weekDays.map((d, i) => {
+                const allDay = eventsByDay[i].filter(e => !e.start_time);
+                return (
+                  <div key={i} className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1">
+                    {allDay.map(e => {
+                      const cs = getCatStyle(e.category);
+                      return (
+                        <HoverCard key={e.id} openDelay={150} closeDelay={50}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              onClick={() => openEdit(e)}
+                              className={cn(
+                                'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate',
+                                cs.bar,
+                                cs.border,
+                                cs.text,
+                              )}
+                            >
+                              {e.title}
+                            </button>
+                          </HoverCardTrigger>
+                          <EventHoverPopup event={e} />
+                        </HoverCard>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Hourly grid */}
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
+              {/* Hour labels */}
+              <div className="border-r">
+                {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
+                  <div
+                    key={h}
+                    className="text-[10px] text-muted-foreground text-right pr-1"
+                    style={{ height: HOUR_HEIGHT }}
+                  >
+                    {h}:00
+                  </div>
+                ))}
+              </div>
+
+              {/* Day columns */}
+              {weekDays.map((d, dayIdx) => {
+                const timed = eventsByDay[dayIdx].filter(e => e.start_time);
+                const isToday = sameDay(d, today);
+                return (
+                  <div
+                    key={dayIdx}
+                    className={cn(
+                      'relative border-r last:border-r-0',
+                      isToday && 'bg-primary/[0.03]',
+                    )}
+                    style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
+                  >
+                    {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
                       <div
-                        className={cn(
-                          'mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold',
-                          isToday && 'bg-primary text-primary-foreground',
-                        )}
-                      >
-                        {d.getDate()}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        key={h}
+                        onClick={() => openCreate(d, h)}
+                        className="border-b border-border/40 cursor-pointer hover:bg-accent/30 transition-colors"
+                        style={{ height: HOUR_HEIGHT }}
+                      />
+                    ))}
 
-              {/* All-day strip */}
-              <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b">
-                <div className="text-[10px] text-muted-foreground px-1 py-1 text-right border-r">
-                  all-day
-                </div>
-                {weekDays.map((d, i) => {
-                  const allDay = eventsByDay[i].filter(e => !e.start_time);
-                  return (
-                    <div key={i} className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1">
-                      {allDay.map(e => {
-                        const cs = getCatStyle(e.category);
-                        return (
-                          <button
-                            key={e.id}
-                            onClick={() => openEdit(e)}
-                            className={cn(
-                              'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate',
-                              cs.bar,
-                              cs.border,
-                              cs.text,
-                            )}
-                            title={e.title}
-                          >
-                            {e.title}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Hourly grid */}
-              <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
-                {/* Hour labels */}
-                <div className="border-r">
-                  {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
-                    <div
-                      key={h}
-                      className="text-[10px] text-muted-foreground text-right pr-1"
-                      style={{ height: HOUR_HEIGHT }}
-                    >
-                      {h}:00
-                    </div>
-                  ))}
-                </div>
-
-                {/* Day columns */}
-                {weekDays.map((d, dayIdx) => {
-                  const timed = eventsByDay[dayIdx].filter(e => e.start_time);
-                  const isToday = sameDay(d, today);
-                  return (
-                    <div
-                      key={dayIdx}
-                      className={cn(
-                        'relative border-r last:border-r-0',
-                        isToday && 'bg-primary/[0.03]',
-                      )}
-                      style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
-                    >
-                      {/* hour rows + click target */}
-                      {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
-                        <div
-                          key={h}
-                          onClick={() => openCreate(d, h)}
-                          className="border-b border-border/40 cursor-pointer hover:bg-accent/30 transition-colors"
-                          style={{ height: HOUR_HEIGHT }}
-                        />
-                      ))}
-
-                      {/* Events */}
-                      {timed.map(e => {
-                        const startMin = minutesFromTime(e.start_time!);
-                        const endMin = e.end_time
-                          ? minutesFromTime(e.end_time)
-                          : startMin + 60;
-                        const top = ((startMin - HOUR_START * 60) / 60) * HOUR_HEIGHT;
-                        const height = Math.max(
-                          18,
-                          ((endMin - startMin) / 60) * HOUR_HEIGHT - 2,
-                        );
-                        if (top + height < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
-                        const cs = getCatStyle(e.category);
-                        return (
-                          <button
-                            key={e.id}
-                            onClick={ev => {
-                              ev.stopPropagation();
-                              openEdit(e);
-                            }}
-                            className={cn(
-                              'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm',
-                              cs.bar,
-                              cs.border,
-                              cs.text,
-                            )}
-                            style={{ top: Math.max(0, top), height }}
-                            title={`${e.title} • ${fmtTime(e.start_time)}${
-                              e.end_time ? `–${fmtTime(e.end_time)}` : ''
-                            }`}
-                          >
-                            <div className="font-medium truncate leading-tight">{e.title}</div>
-                            <div className="opacity-80 truncate leading-tight">
-                              {fmtTime(e.start_time)}
-                              {e.end_time && ` – ${fmtTime(e.end_time)}`}
-                              {e.recurrence_id && ' · ↻'}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                    {timed.map(e => {
+                      const startMin = minutesFromTime(e.start_time!);
+                      const endMin = e.end_time
+                        ? minutesFromTime(e.end_time)
+                        : startMin + 60;
+                      const top = ((startMin - HOUR_START * 60) / 60) * HOUR_HEIGHT;
+                      const height = Math.max(
+                        18,
+                        ((endMin - startMin) / 60) * HOUR_HEIGHT - 2,
+                      );
+                      if (top + height < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
+                      const cs = getCatStyle(e.category);
+                      return (
+                        <HoverCard key={e.id} openDelay={150} closeDelay={50}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              onClick={ev => {
+                                ev.stopPropagation();
+                                openEdit(e);
+                              }}
+                              className={cn(
+                                'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm',
+                                cs.bar,
+                                cs.border,
+                                cs.text,
+                              )}
+                              style={{ top: Math.max(0, top), height }}
+                            >
+                              <div className="font-medium truncate leading-tight">{e.title}</div>
+                              <div className="opacity-80 truncate leading-tight">
+                                {fmtTime(e.start_time)}
+                                {e.end_time && ` – ${fmtTime(e.end_time)}`}
+                                {e.recurrence_id && ' · ↻'}
+                              </div>
+                            </button>
+                          </HoverCardTrigger>
+                          <EventHoverPopup event={e} />
+                        </HoverCard>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create / Edit Dialog */}
@@ -569,7 +606,9 @@ export default function CalendarPage() {
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit event' : 'New event'}</DialogTitle>
             <DialogDescription>
-              {editing ? 'Update or remove this event.' : 'Plan something on your personal calendar.'}
+              {editing
+                ? 'Update or remove this event.'
+                : 'Plan something on your personal calendar.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -664,6 +703,7 @@ export default function CalendarPage() {
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
                       <SelectItem value="none">Does not repeat</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
                       <SelectItem value="weekly">Weekly</SelectItem>
                       <SelectItem value="monthly">Monthly</SelectItem>
                     </SelectContent>
@@ -676,10 +716,13 @@ export default function CalendarPage() {
                       id="ev-count"
                       type="number"
                       min={1}
-                      max={52}
+                      max={form.recurrence === 'daily' ? 366 : 52}
                       value={form.recurrence_count}
                       onChange={e =>
-                        setForm({ ...form, recurrence_count: parseInt(e.target.value || '1', 10) })
+                        setForm({
+                          ...form,
+                          recurrence_count: parseInt(e.target.value || '1', 10),
+                        })
                       }
                     />
                   </div>
@@ -708,12 +751,17 @@ export default function CalendarPage() {
               >
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
-            ) : <span />}
+            ) : (
+              <span />
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+              <Button
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
                 {editing ? 'Save' : 'Create'}
               </Button>
             </div>
@@ -761,6 +809,6 @@ export default function CalendarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </div>
   );
 }

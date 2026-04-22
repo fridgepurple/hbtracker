@@ -7,7 +7,7 @@ export type EventCategory =
   | 'school'
   | 'personal';
 
-export type EventRecurrence = 'none' | 'weekly' | 'monthly';
+export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
 
 export interface CalendarEvent {
   id: string;
@@ -89,7 +89,9 @@ export const createEvent = async (input: CreateEventInput) => {
   const rows = [];
   for (let i = 0; i < input.recurrence_count; i++) {
     const d = new Date(input.date);
-    if (input.recurrence === 'weekly') {
+    if (input.recurrence === 'daily') {
+      d.setDate(d.getDate() + i);
+    } else if (input.recurrence === 'weekly') {
       d.setDate(d.getDate() + i * 7);
     } else {
       // monthly — same day-of-month, skip if month doesn't have it

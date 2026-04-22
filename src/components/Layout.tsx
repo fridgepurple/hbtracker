@@ -108,16 +108,6 @@ export default function Layout({ children }: LayoutProps) {
               </Button>
             </Link>
 
-            {/* Personal Calendar */}
-            <Link to="/calendar">
-              <Button
-                variant={location.pathname === '/calendar' ? 'default' : 'ghost'}
-                className="flex items-center gap-2 whitespace-nowrap"
-              >
-                <CalendarClock className="h-4 w-4" />
-                <span>Calendar</span>
-              </Button>
-            </Link>
           </div>
         </div>
       </nav>

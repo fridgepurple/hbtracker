@@ -691,41 +691,53 @@ export default function WeekCalendar() {
             )}
 
             {!editing && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Repeat</Label>
-                  <Select
-                    value={form.recurrence}
-                    onValueChange={v => setForm({ ...form, recurrence: v as EventRecurrence })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="none">Does not repeat</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {form.recurrence !== 'none' && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  ↻ Repeat this event
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="ev-count">Occurrences</Label>
-                    <Input
-                      id="ev-count"
-                      type="number"
-                      min={1}
-                      max={form.recurrence === 'daily' ? 366 : 52}
-                      value={form.recurrence_count}
-                      onChange={e =>
-                        setForm({
-                          ...form,
-                          recurrence_count: parseInt(e.target.value || '1', 10),
-                        })
-                      }
-                    />
+                    <Label className="text-xs">Frequency</Label>
+                    <Select
+                      value={form.recurrence}
+                      onValueChange={v => setForm({ ...form, recurrence: v as EventRecurrence })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="none">Does not repeat</SelectItem>
+                        <SelectItem value="daily">Every day</SelectItem>
+                        <SelectItem value="weekly">Every week</SelectItem>
+                        <SelectItem value="monthly">Every month</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {form.recurrence !== 'none' && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ev-count" className="text-xs">
+                        How many times
+                      </Label>
+                      <Input
+                        id="ev-count"
+                        type="number"
+                        min={1}
+                        max={form.recurrence === 'daily' ? 366 : 52}
+                        value={form.recurrence_count}
+                        onChange={e =>
+                          setForm({
+                            ...form,
+                            recurrence_count: parseInt(e.target.value || '1', 10),
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+                {form.recurrence === 'daily' && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Tip: for things you want to track consistency on (work, gym, journaling), the Habit Tracker is a better fit.
+                  </p>
                 )}
               </div>
             )}

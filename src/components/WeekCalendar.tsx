@@ -259,7 +259,10 @@ export default function WeekCalendar() {
     start_time: '09:00',
     end_time: '10:00',
     recurrence: 'none' as EventRecurrence,
-    recurrence_count: 1,
+    end_mode: 'count' as 'count' | 'until',
+    recurrence_count: 10,
+    until: isoDate(new Date(Date.now() + 30 * 86400000)),
+    weekdays: [] as number[],
   });
 
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
@@ -278,13 +281,17 @@ export default function WeekCalendar() {
       start_time: defaultStart,
       end_time: defaultEnd,
       recurrence: 'none',
-      recurrence_count: 1,
+      end_mode: 'count',
+      recurrence_count: 10,
+      until: isoDate(new Date(date.getTime() + 30 * 86400000)),
+      weekdays: [date.getDay()],
     });
     setDialogOpen(true);
   };
 
   const openEdit = (e: CalendarEvent) => {
     setEditing(e);
+    const [yy, mm, dd] = e.date.split('-').map(Number);
     setForm({
       title: e.title,
       description: e.description ?? '',
@@ -294,7 +301,10 @@ export default function WeekCalendar() {
       start_time: e.start_time?.slice(0, 5) ?? '09:00',
       end_time: e.end_time?.slice(0, 5) ?? '10:00',
       recurrence: e.recurrence,
+      end_mode: 'count',
       recurrence_count: e.recurrence_count ?? 1,
+      until: e.date,
+      weekdays: [new Date(yy, mm - 1, dd).getDay()],
     });
     setDialogOpen(true);
   };
@@ -361,7 +371,9 @@ export default function WeekCalendar() {
         },
       });
     } else {
-      const maxOcc = form.recurrence === 'daily' ? 366 : 52;
+      const maxOcc = form.recurrence === 'daily' ? 366 : 366;
+      const [uy, um, ud] = form.until.split('-').map(Number);
+      const untilDate = form.end_mode === 'until' ? new Date(uy, um - 1, ud) : null;
       createMutation.mutate({
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -370,8 +382,11 @@ export default function WeekCalendar() {
         start_time,
         end_time,
         recurrence: form.recurrence,
+        end_mode: form.end_mode,
         recurrence_count:
           form.recurrence === 'none' ? 1 : Math.max(1, Math.min(maxOcc, form.recurrence_count)),
+        until: untilDate,
+        weekdays: form.recurrence === 'weekly' ? form.weekdays : undefined,
       });
     }
   };
@@ -695,45 +710,114 @@ export default function WeekCalendar() {
                 <Label className="text-xs font-semibold uppercase tracking-wide text-primary">
                   ↻ Repeat this event
                 </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Frequency</Label>
-                    <Select
-                      value={form.recurrence}
-                      onValueChange={v => setForm({ ...form, recurrence: v as EventRecurrence })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        <SelectItem value="none">Does not repeat</SelectItem>
-                        <SelectItem value="daily">Every day</SelectItem>
-                        <SelectItem value="weekly">Every week</SelectItem>
-                        <SelectItem value="monthly">Every month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {form.recurrence !== 'none' && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ev-count" className="text-xs">
-                        How many times
-                      </Label>
-                      <Input
-                        id="ev-count"
-                        type="number"
-                        min={1}
-                        max={form.recurrence === 'daily' ? 366 : 52}
-                        value={form.recurrence_count}
-                        onChange={e =>
-                          setForm({
-                            ...form,
-                            recurrence_count: parseInt(e.target.value || '1', 10),
-                          })
-                        }
-                      />
-                    </div>
-                  )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Frequency</Label>
+                  <Select
+                    value={form.recurrence}
+                    onValueChange={v => setForm({ ...form, recurrence: v as EventRecurrence })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="none">Does not repeat</SelectItem>
+                      <SelectItem value="daily">Every day</SelectItem>
+                      <SelectItem value="weekly">Weekly on selected days</SelectItem>
+                      <SelectItem value="monthly">Every month</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {form.recurrence === 'weekly' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Repeat on</Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[
+                        { d: 0, l: 'S' },
+                        { d: 1, l: 'M' },
+                        { d: 2, l: 'T' },
+                        { d: 3, l: 'W' },
+                        { d: 4, l: 'T' },
+                        { d: 5, l: 'F' },
+                        { d: 6, l: 'S' },
+                      ].map(({ d, l }) => {
+                        const active = form.weekdays.includes(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                weekdays: active
+                                  ? form.weekdays.filter(x => x !== d)
+                                  : [...form.weekdays, d],
+                              })
+                            }
+                            className={cn(
+                              'h-8 w-8 rounded-full border text-xs font-semibold transition-colors',
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background border-border text-muted-foreground hover:bg-accent',
+                            )}
+                            aria-pressed={active}
+                            aria-label={`Toggle ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]}`}
+                          >
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {form.recurrence !== 'none' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ends</Label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={form.end_mode}
+                        onValueChange={v => setForm({ ...form, end_mode: v as 'count' | 'until' })}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="count">After</SelectItem>
+                          <SelectItem value="until">On date</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {form.end_mode === 'count' ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={366}
+                            value={form.recurrence_count}
+                            onChange={e =>
+                              setForm({
+                                ...form,
+                                recurrence_count: parseInt(e.target.value || '1', 10),
+                              })
+                            }
+                            className="flex-1"
+                          />
+                          <span className="text-xs text-muted-foreground">times</span>
+                        </div>
+                      ) : (
+                        <Input
+                          type="date"
+                          value={form.until}
+                          min={form.date}
+                          onChange={e => setForm({ ...form, until: e.target.value })}
+                          className="flex-1"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {form.recurrence === 'daily' && (
                   <p className="text-[10px] text-muted-foreground">
                     Tip: for things you want to track consistency on (work, gym, journaling), the Habit Tracker is a better fit.

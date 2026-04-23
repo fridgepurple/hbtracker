@@ -259,7 +259,10 @@ export default function WeekCalendar() {
     start_time: '09:00',
     end_time: '10:00',
     recurrence: 'none' as EventRecurrence,
-    recurrence_count: 1,
+    end_mode: 'count' as 'count' | 'until',
+    recurrence_count: 10,
+    until: isoDate(new Date(Date.now() + 30 * 86400000)),
+    weekdays: [] as number[],
   });
 
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);

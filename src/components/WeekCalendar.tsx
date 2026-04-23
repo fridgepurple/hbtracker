@@ -371,7 +371,9 @@ export default function WeekCalendar() {
         },
       });
     } else {
-      const maxOcc = form.recurrence === 'daily' ? 366 : 52;
+      const maxOcc = form.recurrence === 'daily' ? 366 : 366;
+      const [uy, um, ud] = form.until.split('-').map(Number);
+      const untilDate = form.end_mode === 'until' ? new Date(uy, um - 1, ud) : null;
       createMutation.mutate({
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -380,8 +382,11 @@ export default function WeekCalendar() {
         start_time,
         end_time,
         recurrence: form.recurrence,
+        end_mode: form.end_mode,
         recurrence_count:
           form.recurrence === 'none' ? 1 : Math.max(1, Math.min(maxOcc, form.recurrence_count)),
+        until: untilDate,
+        weekdays: form.recurrence === 'weekly' ? form.weekdays : undefined,
       });
     }
   };

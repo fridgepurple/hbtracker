@@ -281,13 +281,17 @@ export default function WeekCalendar() {
       start_time: defaultStart,
       end_time: defaultEnd,
       recurrence: 'none',
-      recurrence_count: 1,
+      end_mode: 'count',
+      recurrence_count: 10,
+      until: isoDate(new Date(date.getTime() + 30 * 86400000)),
+      weekdays: [date.getDay()],
     });
     setDialogOpen(true);
   };
 
   const openEdit = (e: CalendarEvent) => {
     setEditing(e);
+    const [yy, mm, dd] = e.date.split('-').map(Number);
     setForm({
       title: e.title,
       description: e.description ?? '',
@@ -297,7 +301,10 @@ export default function WeekCalendar() {
       start_time: e.start_time?.slice(0, 5) ?? '09:00',
       end_time: e.end_time?.slice(0, 5) ?? '10:00',
       recurrence: e.recurrence,
+      end_mode: 'count',
       recurrence_count: e.recurrence_count ?? 1,
+      until: e.date,
+      weekdays: [new Date(yy, mm - 1, dd).getDay()],
     });
     setDialogOpen(true);
   };

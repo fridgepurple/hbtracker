@@ -274,10 +274,12 @@ function SortableTask({
   task,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   task: ProjectTask;
   onToggle: (checked: boolean) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -307,13 +309,18 @@ function SortableTask({
         onCheckedChange={checked => onToggle(!!checked)}
         className="mt-0.5"
       />
-      <div className="flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex-1 min-w-0 text-left"
+        title="Click to edit"
+      >
         {task.description ? (
           <HoverCard openDelay={200} closeDelay={50}>
             <HoverCardTrigger asChild>
               <p
                 className={cn(
-                  'text-sm leading-snug cursor-help',
+                  'text-sm leading-snug cursor-pointer hover:text-primary transition-colors',
                   task.status === 'done' && 'line-through text-muted-foreground',
                 )}
               >
@@ -330,7 +337,7 @@ function SortableTask({
         ) : (
           <p
             className={cn(
-              'text-sm leading-snug',
+              'text-sm leading-snug cursor-pointer hover:text-primary transition-colors',
               task.status === 'done' && 'line-through text-muted-foreground',
             )}
           >
@@ -350,7 +357,7 @@ function SortableTask({
             {format(new Date(task.due_date), 'MMM d')}
           </p>
         )}
-      </div>
+      </button>
       <Button
         variant="ghost"
         size="icon"
@@ -395,6 +402,12 @@ export default function Goals() {
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [taskDialogProjectId, setTaskDialogProjectId] = useState<string | null>(null);
   const [hideDoneByProject, setHideDoneByProject] = useState<Set<string>>(new Set());
+
+  // Edit task state
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskDueDate, setEditTaskDueDate] = useState('');
 
   // DnD state
   const [activeDragTask, setActiveDragTask] = useState<ProjectTask | null>(null);
@@ -1137,6 +1150,12 @@ export default function Goals() {
                                     })
                                   }
                                   onDelete={() => deleteTaskMutation.mutate(task.id)}
+                                  onEdit={() => {
+                                    setEditingTask(task);
+                                    setEditTaskTitle(task.title);
+                                    setEditTaskDescription(task.description ?? '');
+                                    setEditTaskDueDate(task.due_date ?? '');
+                                  }}
                                 />
                               ))
                             )}
@@ -1274,6 +1293,87 @@ export default function Goals() {
                       disabled={!newTaskTitle.trim() || !taskDialogProjectId}
                     >
                       Add Task
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Task Dialog */}
+            <Dialog
+              open={!!editingTask}
+              onOpenChange={open => {
+                if (!open) {
+                  setEditingTask(null);
+                  setEditTaskTitle('');
+                  setEditTaskDescription('');
+                  setEditTaskDueDate('');
+                }
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Task</DialogTitle>
+                  <DialogDescription>
+                    Update this task's title, notes, or deadline.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Title</label>
+                    <Input
+                      value={editTaskTitle}
+                      onChange={e => setEditTaskTitle(e.target.value)}
+                      maxLength={200}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description (optional)</label>
+                    <Textarea
+                      value={editTaskDescription}
+                      onChange={e => setEditTaskDescription(e.target.value)}
+                      maxLength={500}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Deadline (optional)</label>
+                    <Input
+                      type="date"
+                      value={editTaskDueDate}
+                      onChange={e => setEditTaskDueDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditingTask(null)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!editingTask || !editTaskTitle.trim()) {
+                          toast.error('Title is required');
+                          return;
+                        }
+                        updateTaskMutation.mutate({
+                          id: editingTask.id,
+                          updates: {
+                            title: editTaskTitle.trim(),
+                            description: editTaskDescription.trim() || null,
+                            due_date: editTaskDueDate || null,
+                          },
+                        });
+                        setEditingTask(null);
+                        toast.success('Task updated');
+                      }}
+                      className="flex-1"
+                      disabled={!editTaskTitle.trim()}
+                    >
+                      Save
                     </Button>
                   </div>
                 </div>

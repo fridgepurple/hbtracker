@@ -403,6 +403,12 @@ export default function Goals() {
   const [taskDialogProjectId, setTaskDialogProjectId] = useState<string | null>(null);
   const [hideDoneByProject, setHideDoneByProject] = useState<Set<string>>(new Set());
 
+  // Edit task state
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskDueDate, setEditTaskDueDate] = useState('');
+
   // DnD state
   const [activeDragTask, setActiveDragTask] = useState<ProjectTask | null>(null);
   const sensors = useSensors(
@@ -1144,6 +1150,12 @@ export default function Goals() {
                                     })
                                   }
                                   onDelete={() => deleteTaskMutation.mutate(task.id)}
+                                  onEdit={() => {
+                                    setEditingTask(task);
+                                    setEditTaskTitle(task.title);
+                                    setEditTaskDescription(task.description ?? '');
+                                    setEditTaskDueDate(task.due_date ?? '');
+                                  }}
                                 />
                               ))
                             )}

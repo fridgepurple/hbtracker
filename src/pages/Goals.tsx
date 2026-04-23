@@ -1298,6 +1298,87 @@ export default function Goals() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Task Dialog */}
+            <Dialog
+              open={!!editingTask}
+              onOpenChange={open => {
+                if (!open) {
+                  setEditingTask(null);
+                  setEditTaskTitle('');
+                  setEditTaskDescription('');
+                  setEditTaskDueDate('');
+                }
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Task</DialogTitle>
+                  <DialogDescription>
+                    Update this task's title, notes, or deadline.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Title</label>
+                    <Input
+                      value={editTaskTitle}
+                      onChange={e => setEditTaskTitle(e.target.value)}
+                      maxLength={200}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description (optional)</label>
+                    <Textarea
+                      value={editTaskDescription}
+                      onChange={e => setEditTaskDescription(e.target.value)}
+                      maxLength={500}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Deadline (optional)</label>
+                    <Input
+                      type="date"
+                      value={editTaskDueDate}
+                      onChange={e => setEditTaskDueDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditingTask(null)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!editingTask || !editTaskTitle.trim()) {
+                          toast.error('Title is required');
+                          return;
+                        }
+                        updateTaskMutation.mutate({
+                          id: editingTask.id,
+                          updates: {
+                            title: editTaskTitle.trim(),
+                            description: editTaskDescription.trim() || null,
+                            due_date: editTaskDueDate || null,
+                          },
+                        });
+                        setEditingTask(null);
+                        toast.success('Task updated');
+                      }}
+                      className="flex-1"
+                      disabled={!editTaskTitle.trim()}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CollapsibleContent>
         </Collapsible>
 

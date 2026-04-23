@@ -274,10 +274,12 @@ function SortableTask({
   task,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   task: ProjectTask;
   onToggle: (checked: boolean) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -307,13 +309,18 @@ function SortableTask({
         onCheckedChange={checked => onToggle(!!checked)}
         className="mt-0.5"
       />
-      <div className="flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex-1 min-w-0 text-left"
+        title="Click to edit"
+      >
         {task.description ? (
           <HoverCard openDelay={200} closeDelay={50}>
             <HoverCardTrigger asChild>
               <p
                 className={cn(
-                  'text-sm leading-snug cursor-help',
+                  'text-sm leading-snug cursor-pointer hover:text-primary transition-colors',
                   task.status === 'done' && 'line-through text-muted-foreground',
                 )}
               >
@@ -330,7 +337,7 @@ function SortableTask({
         ) : (
           <p
             className={cn(
-              'text-sm leading-snug',
+              'text-sm leading-snug cursor-pointer hover:text-primary transition-colors',
               task.status === 'done' && 'line-through text-muted-foreground',
             )}
           >
@@ -350,7 +357,7 @@ function SortableTask({
             {format(new Date(task.due_date), 'MMM d')}
           </p>
         )}
-      </div>
+      </button>
       <Button
         variant="ghost"
         size="icon"

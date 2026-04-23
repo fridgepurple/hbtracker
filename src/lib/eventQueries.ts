@@ -5,7 +5,17 @@ export type EventCategory =
   | 'home'
   | 'self_care'
   | 'school'
-  | 'personal';
+  | 'personal'
+  | 'work'
+  | 'health'
+  | 'fitness'
+  | 'social'
+  | 'finance'
+  | 'travel'
+  | 'hobbies'
+  | 'family'
+  | 'creative'
+  | 'errands';
 
 export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
 

@@ -63,7 +63,7 @@ import {
 } from '@/lib/eventQueries';
 
 // ─── Time grid config ───────────────────────────────────────────────
-const HOUR_START = 6;
+const HOUR_START = 4;
 const HOUR_END = 23;
 const HOUR_HEIGHT = 48;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
@@ -602,13 +602,13 @@ export default function WeekCalendar() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit event' : 'New event'}</DialogTitle>
             <DialogDescription>
               {editing
-                ? 'Update or remove this event.'
-                : 'Plan something on your personal calendar.'}
+                ? 'Update or remove this event. To change the repeat pattern, delete and recreate.'
+                : 'Plan something on your personal calendar. Choose a repeat pattern below for daily, weekly, or monthly events.'}
             </DialogDescription>
           </DialogHeader>
 

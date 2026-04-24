@@ -17,7 +17,7 @@ export type EventCategory =
   | 'creative'
   | 'errands';
 
-export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
+export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface CalendarEvent {
   id: string;
@@ -152,6 +152,16 @@ export const createEvent = async (input: CreateEventInput) => {
       i += 1;
       const next = new Date(start);
       next.setMonth(start.getMonth() + i);
+      d.setTime(next.getTime());
+    }
+  } else if (recurrence === 'yearly') {
+    const d = new Date(start);
+    let i = 0;
+    while (!shouldStop(d, dates.length)) {
+      dates.push(new Date(d));
+      i += 1;
+      const next = new Date(start);
+      next.setFullYear(start.getFullYear() + i);
       d.setTime(next.getTime());
     }
   }

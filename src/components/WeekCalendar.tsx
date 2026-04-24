@@ -860,37 +860,26 @@ export default function WeekCalendar() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="ev-allday" className="cursor-pointer">All-day</Label>
-              <Switch
-                id="ev-allday"
-                checked={form.allDay}
-                onCheckedChange={v => setForm({ ...form, allDay: v })}
-              />
-            </div>
-
-            {!form.allDay && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="ev-start">Start</Label>
-                  <Input
-                    id="ev-start"
-                    type="time"
-                    value={form.start_time}
-                    onChange={e => setForm({ ...form, start_time: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ev-end">End</Label>
-                  <Input
-                    id="ev-end"
-                    type="time"
-                    value={form.end_time}
-                    onChange={e => setForm({ ...form, end_time: e.target.value })}
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-start">Start</Label>
+                <Input
+                  id="ev-start"
+                  type="time"
+                  value={form.start_time}
+                  onChange={e => setForm({ ...form, start_time: e.target.value })}
+                />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-end">End</Label>
+                <Input
+                  id="ev-end"
+                  type="time"
+                  value={form.end_time}
+                  onChange={e => setForm({ ...form, end_time: e.target.value })}
+                />
+              </div>
+            </div>
 
             {!editing && (
               <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">

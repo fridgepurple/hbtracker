@@ -17,7 +17,7 @@ export type EventCategory =
   | 'creative'
   | 'errands';
 
-export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
+export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface CalendarEvent {
   id: string;

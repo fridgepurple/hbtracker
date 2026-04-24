@@ -74,7 +74,7 @@ import {
 // ─── Time grid config ───────────────────────────────────────────────
 const HOUR_START = 4;
 const HOUR_END = 23;
-const HOUR_HEIGHT = 48;
+const HOUR_HEIGHT = 36;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
 // ─── Categories ─────────────────────────────────────────────────────
@@ -314,6 +314,7 @@ function EventHoverPopup({ event }: { event: CalendarEvent }) {
 // ─── WeekCalendar ───────────────────────────────────────────────────
 export default function WeekCalendar() {
   const queryClient = useQueryClient();
+  const [view, setView] = useState<'week' | 'month'>('week');
   const [anchor, setAnchor] = useState<Date>(new Date());
   const weekStart = useMemo(() => startOfWeekMonday(anchor), [anchor]);
   const weekDays = useMemo(
@@ -322,13 +323,26 @@ export default function WeekCalendar() {
   );
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
 
+  // Month view: build a 6-week grid that contains the anchor's month
+  const monthInfo = useMemo(() => {
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    const gridStart = startOfWeekMonday(first);
+    const gridEnd = addDays(gridStart, 41); // 6 weeks
+    const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+    return { first, last, gridStart, gridEnd, days };
+  }, [anchor]);
+
+  const rangeStart = view === 'week' ? weekStart : monthInfo.gridStart;
+  const rangeEnd = view === 'week' ? weekEnd : monthInfo.gridEnd;
+
   const [activeCats, setActiveCats] = useState<Set<EventCategory>>(
     new Set(CATEGORY_OPTIONS.map(c => c.value)),
   );
 
   const { data: events = [] } = useQuery({
-    queryKey: ['events', isoDate(weekStart), isoDate(weekEnd)],
-    queryFn: () => fetchEventsInRange(weekStart, weekEnd),
+    queryKey: ['events', isoDate(rangeStart), isoDate(rangeEnd)],
+    queryFn: () => fetchEventsInRange(rangeStart, rangeEnd),
   });
 
   const visibleEvents = useMemo(
@@ -347,6 +361,22 @@ export default function WeekCalendar() {
     return map;
   }, [visibleEvents, weekDays]);
 
+  // For month view: group by ISO date string
+  const eventsByIsoDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    visibleEvents.forEach(e => {
+      const arr = map.get(e.date) ?? [];
+      arr.push(e);
+      map.set(e.date, arr);
+    });
+    // Sort each day's events by start_time (untimed first)
+    map.forEach(arr =>
+      arr.sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
+    );
+    return map;
+  }, [visibleEvents]);
+
+
   // ─── Dialog state ─────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
@@ -355,7 +385,6 @@ export default function WeekCalendar() {
     description: '',
     category: 'personal' as EventCategory,
     date: isoDate(new Date()),
-    allDay: false,
     start_time: '09:00',
     end_time: '10:00',
     recurrence: 'none' as EventRecurrence,
@@ -377,7 +406,6 @@ export default function WeekCalendar() {
       description: '',
       category: 'personal',
       date: isoDate(date),
-      allDay: false,
       start_time: defaultStart,
       end_time: defaultEnd,
       recurrence: 'none',
@@ -397,7 +425,6 @@ export default function WeekCalendar() {
       description: e.description ?? '',
       category: e.category,
       date: e.date,
-      allDay: !e.start_time,
       start_time: e.start_time?.slice(0, 5) ?? '09:00',
       end_time: e.end_time?.slice(0, 5) ?? '10:00',
       recurrence: e.recurrence,
@@ -519,8 +546,8 @@ export default function WeekCalendar() {
     const [y, m, d] = form.date.split('-').map(Number);
     const date = new Date(y, m - 1, d);
 
-    const start_time = form.allDay ? null : `${form.start_time}:00`;
-    const end_time = form.allDay ? null : `${form.end_time}:00`;
+    const start_time = `${form.start_time}:00`;
+    const end_time = `${form.end_time}:00`;
 
     if (editing) {
       updateMutation.mutate({
@@ -569,24 +596,65 @@ export default function WeekCalendar() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-sm font-semibold">
-          {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
-          –{' '}
-          {weekEnd.toLocaleDateString(undefined, {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          {view === 'week' ? (
+            <>
+              {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
+              –{' '}
+              {weekEnd.toLocaleDateString(undefined, {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </>
+          ) : (
+            anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, -7))}>
+        <div className="flex items-center gap-1.5">
+          {/* View toggle */}
+          <div className="inline-flex rounded-md border bg-background p-0.5">
+            <button
+              onClick={() => setView('week')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-sm transition-colors',
+                view === 'week' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setView('month')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-sm transition-colors',
+                view === 'month' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              Month
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (view === 'week') setAnchor(addDays(weekStart, -7));
+              else setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1));
+            }}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>
             Today
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, 7))}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (view === 'week') setAnchor(addDays(weekStart, 7));
+              else setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1));
+            }}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => openCreate(new Date())}>
@@ -627,177 +695,227 @@ export default function WeekCalendar() {
           </CardContent>
         </Card>
 
-        {/* Week grid */}
+        {/* Calendar grid */}
         <Card className="overflow-hidden">
           <CardContent className="p-0">
-            {/* Day header row */}
-            <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b bg-muted/30">
-              <div className="border-r" />
-              {weekDays.map((d, i) => {
-                const isToday = sameDay(d, today);
-                return (
-                  <div
-                    key={i}
-                    className={cn(
-                      'px-2 py-2 text-center border-r last:border-r-0',
-                      isToday && 'bg-primary/10',
-                    )}
-                  >
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {WEEKDAY_LABELS[i]}
-                    </div>
-                    <div
-                      className={cn(
-                        'mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-semibold',
-                        isToday && 'bg-primary text-primary-foreground',
-                      )}
-                    >
-                      {d.getDate()}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {view === 'week' ? (
+              <>
+                {/* Day header row */}
+                <div className="grid grid-cols-[48px_repeat(7,1fr)] border-b bg-muted/30">
+                  <div className="border-r" />
+                  {weekDays.map((d, i) => {
+                    const isToday = sameDay(d, today);
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'px-1 py-1.5 text-center border-r last:border-r-0',
+                          isToday && 'bg-primary/10',
+                        )}
+                      >
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {WEEKDAY_LABELS[i]}
+                        </div>
+                        <div
+                          className={cn(
+                            'mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full text-[13px] font-semibold',
+                            isToday && 'bg-primary text-primary-foreground',
+                          )}
+                        >
+                          {d.getDate()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-            {/* All-day strip */}
-            <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b">
-              <div className="text-[10px] text-muted-foreground px-1 py-1 text-right border-r">
-                all-day
-              </div>
-              {weekDays.map((d, i) => {
-                const allDay = eventsByDay[i].filter(e => !e.start_time);
-                return (
-                  <div
-                    key={i}
-                    className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1"
-                    onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
-                    onDrop={ev => handleDropOnAllDay(ev, d)}
-                  >
-                    {allDay.map(e => {
-                      const cs = getCatStyle(e.category);
-                      return (
-                        <HoverCard key={e.id} openDelay={150} closeDelay={50}>
-                          <HoverCardTrigger asChild>
-                            <button
-                              onClick={() => openEdit(e)}
-                              draggable
-                              onDragStart={ev => {
-                                ev.dataTransfer.setData('text/event-id', e.id);
-                                ev.dataTransfer.effectAllowed = 'move';
-                                setDraggingId(e.id);
-                              }}
-                              onDragEnd={() => setDraggingId(null)}
-                              className={cn(
-                                'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate cursor-grab active:cursor-grabbing',
-                                cs.bar,
-                                cs.border,
-                                cs.text,
-                                draggingId === e.id && 'opacity-50',
-                              )}
-                            >
-                              {e.title}
-                            </button>
-                          </HoverCardTrigger>
-                          <EventHoverPopup event={e} />
-                        </HoverCard>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Hourly grid */}
-            <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
-              {/* Hour labels */}
-              <div className="border-r">
-                {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
-                  <div
-                    key={h}
-                    className="text-[10px] text-muted-foreground text-right pr-1"
-                    style={{ height: HOUR_HEIGHT }}
-                  >
-                    {h}:00
-                  </div>
-                ))}
-              </div>
-
-              {/* Day columns */}
-              {weekDays.map((d, dayIdx) => {
-                const timed = eventsByDay[dayIdx].filter(e => e.start_time);
-                const isToday = sameDay(d, today);
-                return (
-                  <div
-                    key={dayIdx}
-                    className={cn(
-                      'relative border-r last:border-r-0',
-                      isToday && 'bg-primary/[0.03]',
-                    )}
-                    style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
-                    onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
-                    onDrop={ev => handleDropOnHour(ev, d)}
-                  >
+                {/* Hourly grid */}
+                <div className="grid grid-cols-[48px_repeat(7,1fr)] relative">
+                  {/* Hour labels */}
+                  <div className="border-r">
                     {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
                       <div
                         key={h}
-                        onClick={() => openCreate(d, h)}
-                        className="border-b border-border/40 cursor-pointer hover:bg-accent/30 transition-colors"
+                        className="text-[10px] text-muted-foreground text-right pr-1 leading-none pt-0.5"
                         style={{ height: HOUR_HEIGHT }}
-                      />
+                      >
+                        {h}:00
+                      </div>
                     ))}
-
-                    {timed.map(e => {
-                      const startMin = minutesFromTime(e.start_time!);
-                      const endMin = e.end_time
-                        ? minutesFromTime(e.end_time)
-                        : startMin + 60;
-                      const top = ((startMin - HOUR_START * 60) / 60) * HOUR_HEIGHT;
-                      const height = Math.max(
-                        18,
-                        ((endMin - startMin) / 60) * HOUR_HEIGHT - 2,
-                      );
-                      if (top + height < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
-                      const cs = getCatStyle(e.category);
-                      return (
-                        <HoverCard key={e.id} openDelay={150} closeDelay={50}>
-                          <HoverCardTrigger asChild>
-                            <button
-                              onClick={ev => {
-                                ev.stopPropagation();
-                                openEdit(e);
-                              }}
-                              draggable
-                              onDragStart={ev => {
-                                ev.dataTransfer.setData('text/event-id', e.id);
-                                ev.dataTransfer.effectAllowed = 'move';
-                                setDraggingId(e.id);
-                              }}
-                              onDragEnd={() => setDraggingId(null)}
-                              className={cn(
-                                'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm cursor-grab active:cursor-grabbing',
-                                cs.bar,
-                                cs.border,
-                                cs.text,
-                                draggingId === e.id && 'opacity-50',
-                              )}
-                              style={{ top: Math.max(0, top), height }}
-                            >
-                              <div className="font-medium truncate leading-tight">{e.title}</div>
-                              <div className="opacity-80 truncate leading-tight">
-                                {fmtTime(e.start_time)}
-                                {e.end_time && ` – ${fmtTime(e.end_time)}`}
-                                {e.recurrence_id && ' · ↻'}
-                              </div>
-                            </button>
-                          </HoverCardTrigger>
-                          <EventHoverPopup event={e} />
-                        </HoverCard>
-                      );
-                    })}
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Day columns */}
+                  {weekDays.map((d, dayIdx) => {
+                    const dayEvents = eventsByDay[dayIdx];
+                    const isToday = sameDay(d, today);
+                    return (
+                      <div
+                        key={dayIdx}
+                        className={cn(
+                          'relative border-r last:border-r-0',
+                          isToday && 'bg-primary/[0.03]',
+                        )}
+                        style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
+                        onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
+                        onDrop={ev => handleDropOnHour(ev, d)}
+                      >
+                        {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
+                          <div
+                            key={h}
+                            onClick={() => openCreate(d, h)}
+                            className="border-b border-border/40 cursor-pointer hover:bg-accent/30 transition-colors"
+                            style={{ height: HOUR_HEIGHT }}
+                          />
+                        ))}
+
+                        {dayEvents.map(e => {
+                          // Untimed events span full visible day
+                          const isUntimed = !e.start_time;
+                          const startMin = isUntimed ? HOUR_START * 60 : minutesFromTime(e.start_time!);
+                          const endMin = isUntimed
+                            ? HOUR_END * 60
+                            : e.end_time ? minutesFromTime(e.end_time) : startMin + 60;
+                          const top = ((startMin - HOUR_START * 60) / 60) * HOUR_HEIGHT;
+                          const height = Math.max(
+                            16,
+                            ((endMin - startMin) / 60) * HOUR_HEIGHT - 2,
+                          );
+                          if (top + height < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
+                          const cs = getCatStyle(e.category);
+                          return (
+                            <HoverCard key={e.id} openDelay={150} closeDelay={50}>
+                              <HoverCardTrigger asChild>
+                                <button
+                                  onClick={ev => {
+                                    ev.stopPropagation();
+                                    openEdit(e);
+                                  }}
+                                  draggable
+                                  onDragStart={ev => {
+                                    ev.dataTransfer.setData('text/event-id', e.id);
+                                    ev.dataTransfer.effectAllowed = 'move';
+                                    setDraggingId(e.id);
+                                  }}
+                                  onDragEnd={() => setDraggingId(null)}
+                                  className={cn(
+                                    'absolute left-0.5 right-0.5 rounded-sm border-l-2 px-1 py-0.5 text-left text-[10px] overflow-hidden shadow-sm cursor-grab active:cursor-grabbing leading-tight',
+                                    cs.bar,
+                                    cs.border,
+                                    cs.text,
+                                    draggingId === e.id && 'opacity-50',
+                                  )}
+                                  style={{ top: Math.max(0, top), height }}
+                                >
+                                  <div className="font-medium truncate">{e.title}</div>
+                                  {!isUntimed && (
+                                    <div className="opacity-80 truncate text-[9px]">
+                                      {fmtTime(e.start_time)}
+                                      {e.end_time && `–${fmtTime(e.end_time)}`}
+                                      {e.recurrence_id && ' ↻'}
+                                    </div>
+                                  )}
+                                </button>
+                              </HoverCardTrigger>
+                              <EventHoverPopup event={e} />
+                            </HoverCard>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              /* Month view (Google-style mini grid) */
+              <div>
+                {/* Weekday header */}
+                <div className="grid grid-cols-7 border-b bg-muted/30">
+                  {WEEKDAY_LABELS.map(l => (
+                    <div
+                      key={l}
+                      className="text-[10px] uppercase tracking-wide text-muted-foreground text-center py-1.5 border-r last:border-r-0"
+                    >
+                      {l}
+                    </div>
+                  ))}
+                </div>
+                {/* 6 week rows */}
+                <div className="grid grid-cols-7 grid-rows-6">
+                  {monthInfo.days.map((d, i) => {
+                    const inMonth = d.getMonth() === anchor.getMonth();
+                    const isToday = sameDay(d, today);
+                    const dayEvents = eventsByIsoDate.get(isoDate(d)) ?? [];
+                    const visible = dayEvents.slice(0, 3);
+                    const hidden = dayEvents.length - visible.length;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => openCreate(d)}
+                        onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
+                        onDrop={ev => handleDropOnAllDay(ev, d)}
+                        className={cn(
+                          'min-h-[88px] border-b border-r last:border-r-0 p-1 cursor-pointer hover:bg-accent/30 transition-colors flex flex-col gap-0.5',
+                          !inMonth && 'bg-muted/20',
+                          isToday && 'bg-primary/5',
+                          (i + 1) % 7 === 0 && 'border-r-0',
+                          i >= 35 && 'border-b-0',
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'self-end inline-flex items-center justify-center h-5 w-5 rounded-full text-[11px] font-semibold',
+                            !inMonth && 'text-muted-foreground/60',
+                            isToday && 'bg-primary text-primary-foreground',
+                          )}
+                        >
+                          {d.getDate()}
+                        </div>
+                        <div className="flex-1 space-y-0.5 overflow-hidden">
+                          {visible.map(e => {
+                            const cs = getCatStyle(e.category);
+                            return (
+                              <HoverCard key={e.id} openDelay={150} closeDelay={50}>
+                                <HoverCardTrigger asChild>
+                                  <button
+                                    onClick={ev => { ev.stopPropagation(); openEdit(e); }}
+                                    draggable
+                                    onDragStart={ev => {
+                                      ev.stopPropagation();
+                                      ev.dataTransfer.setData('text/event-id', e.id);
+                                      ev.dataTransfer.effectAllowed = 'move';
+                                      setDraggingId(e.id);
+                                    }}
+                                    onDragEnd={() => setDraggingId(null)}
+                                    className={cn(
+                                      'w-full flex items-center gap-1 rounded-sm px-1 py-0 text-left text-[10px] truncate cursor-grab active:cursor-grabbing leading-tight',
+                                      cs.bar,
+                                      cs.text,
+                                      draggingId === e.id && 'opacity-50',
+                                    )}
+                                  >
+                                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cs.swatch)} />
+                                    {e.start_time && (
+                                      <span className="opacity-70 shrink-0">{fmtTime(e.start_time)}</span>
+                                    )}
+                                    <span className="truncate">{e.title}</span>
+                                  </button>
+                                </HoverCardTrigger>
+                                <EventHoverPopup event={e} />
+                              </HoverCard>
+                            );
+                          })}
+                          {hidden > 0 && (
+                            <div className="text-[10px] text-muted-foreground px-1">
+                              +{hidden} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -860,37 +978,26 @@ export default function WeekCalendar() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="ev-allday" className="cursor-pointer">All-day</Label>
-              <Switch
-                id="ev-allday"
-                checked={form.allDay}
-                onCheckedChange={v => setForm({ ...form, allDay: v })}
-              />
-            </div>
-
-            {!form.allDay && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="ev-start">Start</Label>
-                  <Input
-                    id="ev-start"
-                    type="time"
-                    value={form.start_time}
-                    onChange={e => setForm({ ...form, start_time: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ev-end">End</Label>
-                  <Input
-                    id="ev-end"
-                    type="time"
-                    value={form.end_time}
-                    onChange={e => setForm({ ...form, end_time: e.target.value })}
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-start">Start</Label>
+                <Input
+                  id="ev-start"
+                  type="time"
+                  value={form.start_time}
+                  onChange={e => setForm({ ...form, start_time: e.target.value })}
+                />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label htmlFor="ev-end">End</Label>
+                <Input
+                  id="ev-end"
+                  type="time"
+                  value={form.end_time}
+                  onChange={e => setForm({ ...form, end_time: e.target.value })}
+                />
+              </div>
+            </div>
 
             {!editing && (
               <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">

@@ -734,6 +734,8 @@ export default function WeekCalendar() {
                       isToday && 'bg-primary/[0.03]',
                     )}
                     style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
+                    onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={ev => handleDropOnHour(ev, d)}
                   >
                     {Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i).map(h => (
                       <div
@@ -764,11 +766,19 @@ export default function WeekCalendar() {
                                 ev.stopPropagation();
                                 openEdit(e);
                               }}
+                              draggable
+                              onDragStart={ev => {
+                                ev.dataTransfer.setData('text/event-id', e.id);
+                                ev.dataTransfer.effectAllowed = 'move';
+                                setDraggingId(e.id);
+                              }}
+                              onDragEnd={() => setDraggingId(null)}
                               className={cn(
-                                'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm',
+                                'absolute left-1 right-1 rounded-md border-l-2 px-1.5 py-1 text-left text-[11px] overflow-hidden shadow-sm cursor-grab active:cursor-grabbing',
                                 cs.bar,
                                 cs.border,
                                 cs.text,
+                                draggingId === e.id && 'opacity-50',
                               )}
                               style={{ top: Math.max(0, top), height }}
                             >

@@ -823,7 +823,11 @@ export default function WeekCalendar() {
                                     cs.text,
                                     draggingId === e.id && 'opacity-50',
                                   )}
-                                  style={{ top: Math.max(0, top), height }}
+                                  style={{
+                                    top: Math.max(0, top),
+                                    height,
+                                    ...(e.category === 'work' ? workStripeStyle : {}),
+                                  }}
                                 >
                                   <div className="font-medium truncate">{e.title}</div>
                                   {!isUntimed && (

@@ -347,6 +347,9 @@ export default function WeekCalendar() {
     return map;
   }, [visibleEvents, weekDays]);
 
+  // ─── View mode ────────────────────────────────────────────────────
+  const [view, setView] = useState<'week' | 'month'>('week');
+
   // ─── Dialog state ─────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
@@ -355,7 +358,6 @@ export default function WeekCalendar() {
     description: '',
     category: 'personal' as EventCategory,
     date: isoDate(new Date()),
-    allDay: false,
     start_time: '09:00',
     end_time: '10:00',
     recurrence: 'none' as EventRecurrence,
@@ -377,7 +379,6 @@ export default function WeekCalendar() {
       description: '',
       category: 'personal',
       date: isoDate(date),
-      allDay: false,
       start_time: defaultStart,
       end_time: defaultEnd,
       recurrence: 'none',
@@ -397,7 +398,6 @@ export default function WeekCalendar() {
       description: e.description ?? '',
       category: e.category,
       date: e.date,
-      allDay: !e.start_time,
       start_time: e.start_time?.slice(0, 5) ?? '09:00',
       end_time: e.end_time?.slice(0, 5) ?? '10:00',
       recurrence: e.recurrence,

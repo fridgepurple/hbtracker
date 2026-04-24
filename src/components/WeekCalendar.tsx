@@ -276,6 +276,7 @@ function EventHoverPopup({ event }: { event: CalendarEvent }) {
     event.recurrence === 'daily' ? 'Daily'
     : event.recurrence === 'weekly' ? 'Weekly'
     : event.recurrence === 'monthly' ? 'Monthly'
+    : event.recurrence === 'yearly' ? 'Yearly'
     : null;
   return (
     <HoverCardContent side="top" align="start" className="w-72 p-3">

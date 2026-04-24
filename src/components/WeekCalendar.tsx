@@ -74,7 +74,7 @@ import {
 // ─── Time grid config ───────────────────────────────────────────────
 const HOUR_START = 4;
 const HOUR_END = 23;
-const HOUR_HEIGHT = 48;
+const HOUR_HEIGHT = 36;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
 // ─── Categories ─────────────────────────────────────────────────────

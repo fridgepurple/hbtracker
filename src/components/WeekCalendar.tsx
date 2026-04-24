@@ -824,6 +824,7 @@ export default function WeekCalendar() {
                       <SelectItem value="daily">Every day</SelectItem>
                       <SelectItem value="weekly">Weekly on selected days</SelectItem>
                       <SelectItem value="monthly">Every month</SelectItem>
+                      <SelectItem value="yearly">Every year</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

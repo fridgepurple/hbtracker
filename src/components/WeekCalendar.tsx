@@ -100,10 +100,11 @@ export const CATEGORY_OPTIONS: {
     value: 'work',
     label: 'Work',
     icon: Briefcase,
-    swatch: 'bg-indigo-500',
-    bar: 'bg-indigo-500/15 dark:bg-indigo-500/25',
-    border: 'border-indigo-500/50',
-    text: 'text-indigo-700 dark:text-indigo-200',
+    // Striped silver/black pattern — backgrounded so a work calendar elsewhere stays primary.
+    swatch: 'bg-[repeating-linear-gradient(45deg,hsl(var(--muted-foreground)/0.4)_0_3px,hsl(var(--muted)/0.6)_3px_6px)]',
+    bar: 'bg-[repeating-linear-gradient(45deg,hsl(var(--muted-foreground)/0.18)_0_4px,hsl(var(--muted)/0.35)_4px_8px)] dark:bg-[repeating-linear-gradient(45deg,hsl(var(--muted-foreground)/0.25)_0_4px,hsl(var(--muted)/0.45)_4px_8px)]',
+    border: 'border-muted-foreground/40',
+    text: 'text-muted-foreground dark:text-muted-foreground',
   },
   {
     value: 'errands',

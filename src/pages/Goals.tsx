@@ -772,9 +772,6 @@ export default function Goals() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-4">
-            <p className="text-xs text-muted-foreground mb-3">
-              Plan appointments, rituals, classes and one-off commitments. Use Habit Tracker for things you want to repeat consistently.
-            </p>
             <WeekCalendar />
           </CollapsibleContent>
         </Collapsible>

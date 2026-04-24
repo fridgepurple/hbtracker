@@ -293,7 +293,10 @@ function EventHoverPopup({ event }: { event: CalendarEvent }) {
     <HoverCardContent side="top" align="start" className="w-72 p-3">
       <div className="space-y-2">
         <div className="flex items-start gap-2">
-          <span className={cn('mt-0.5 h-2.5 w-2.5 rounded-full shrink-0', cs.swatch)} />
+          <span
+            className={cn('mt-0.5 h-2.5 w-2.5 rounded-full shrink-0', cs.swatch)}
+            style={event.category === 'work' ? workStripeSwatchStyle : undefined}
+          />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm leading-snug">{event.title}</p>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">

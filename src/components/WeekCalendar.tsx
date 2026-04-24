@@ -991,7 +991,10 @@ export default function WeekCalendar() {
                     {CATEGORY_OPTIONS.map(c => (
                       <SelectItem key={c.value} value={c.value}>
                         <span className="flex items-center gap-2">
-                          <span className={cn('h-2 w-2 rounded-full', c.swatch)} />
+                          <span
+                            className={cn('h-2 w-2 rounded-full', c.swatch)}
+                            style={c.value === 'work' ? workStripeSwatchStyle : undefined}
+                          />
                           {c.label}
                         </span>
                       </SelectItem>

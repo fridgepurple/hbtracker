@@ -708,7 +708,10 @@ export default function WeekCalendar() {
                     active ? 'bg-accent' : 'opacity-50 hover:opacity-80',
                   )}
                 >
-                  <span className={cn('h-2.5 w-2.5 rounded-full', c.swatch)} />
+                  <span
+                    className={cn('h-2.5 w-2.5 rounded-full', c.swatch)}
+                    style={c.value === 'work' ? workStripeSwatchStyle : undefined}
+                  />
                   <c.icon className="h-3.5 w-3.5" />
                   <span className="flex-1 text-left">{c.label}</span>
                 </button>

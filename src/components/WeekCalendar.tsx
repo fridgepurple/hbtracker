@@ -667,7 +667,12 @@ export default function WeekCalendar() {
               {weekDays.map((d, i) => {
                 const allDay = eventsByDay[i].filter(e => !e.start_time);
                 return (
-                  <div key={i} className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1">
+                  <div
+                    key={i}
+                    className="border-r last:border-r-0 p-1 min-h-[28px] space-y-1"
+                    onDragOver={ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={ev => handleDropOnAllDay(ev, d)}
+                  >
                     {allDay.map(e => {
                       const cs = getCatStyle(e.category);
                       return (
@@ -675,11 +680,19 @@ export default function WeekCalendar() {
                           <HoverCardTrigger asChild>
                             <button
                               onClick={() => openEdit(e)}
+                              draggable
+                              onDragStart={ev => {
+                                ev.dataTransfer.setData('text/event-id', e.id);
+                                ev.dataTransfer.effectAllowed = 'move';
+                                setDraggingId(e.id);
+                              }}
+                              onDragEnd={() => setDraggingId(null)}
                               className={cn(
-                                'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate',
+                                'w-full text-left rounded px-1.5 py-0.5 text-[11px] border truncate cursor-grab active:cursor-grabbing',
                                 cs.bar,
                                 cs.border,
                                 cs.text,
+                                draggingId === e.id && 'opacity-50',
                               )}
                             >
                               {e.title}

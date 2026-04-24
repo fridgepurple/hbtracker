@@ -597,20 +597,28 @@ export default function WeekCalendar() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm font-semibold">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div className="leading-tight">
           {view === 'week' ? (
             <>
-              {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
-              –{' '}
-              {weekEnd.toLocaleDateString(undefined, {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              <div className="text-2xl font-bold tracking-tight">
+                {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                <span className="text-muted-foreground mx-1.5 font-normal">–</span>
+                {weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-0.5">
+                {weekEnd.toLocaleDateString(undefined, { year: 'numeric' })}
+              </div>
             </>
           ) : (
-            anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+            <>
+              <div className="text-2xl font-bold tracking-tight">
+                {anchor.toLocaleDateString(undefined, { month: 'long' })}
+              </div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-0.5">
+                {anchor.toLocaleDateString(undefined, { year: 'numeric' })}
+              </div>
+            </>
           )}
         </div>
         <div className="flex items-center gap-1.5">

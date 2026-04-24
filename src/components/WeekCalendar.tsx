@@ -596,24 +596,65 @@ export default function WeekCalendar() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-sm font-semibold">
-          {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
-          –{' '}
-          {weekEnd.toLocaleDateString(undefined, {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          {view === 'week' ? (
+            <>
+              {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
+              –{' '}
+              {weekEnd.toLocaleDateString(undefined, {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </>
+          ) : (
+            anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, -7))}>
+        <div className="flex items-center gap-1.5">
+          {/* View toggle */}
+          <div className="inline-flex rounded-md border bg-background p-0.5">
+            <button
+              onClick={() => setView('week')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-sm transition-colors',
+                view === 'week' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setView('month')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-sm transition-colors',
+                view === 'month' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              Month
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (view === 'week') setAnchor(addDays(weekStart, -7));
+              else setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1));
+            }}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>
             Today
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setAnchor(addDays(weekStart, 7))}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (view === 'week') setAnchor(addDays(weekStart, 7));
+              else setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1));
+            }}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => openCreate(new Date())}>

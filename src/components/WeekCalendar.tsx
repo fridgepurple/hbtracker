@@ -915,8 +915,12 @@ export default function WeekCalendar() {
                                       cs.text,
                                       draggingId === e.id && 'opacity-50',
                                     )}
+                                    style={e.category === 'work' ? workStripeStyle : undefined}
                                   >
-                                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cs.swatch)} />
+                                    <span
+                                      className={cn('h-1.5 w-1.5 rounded-full shrink-0', cs.swatch)}
+                                      style={e.category === 'work' ? workStripeSwatchStyle : undefined}
+                                    />
                                     {e.start_time && (
                                       <span className="opacity-70 shrink-0">{fmtTime(e.start_time)}</span>
                                     )}

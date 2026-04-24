@@ -438,6 +438,70 @@ export default function WeekCalendar() {
     },
   });
 
+  // Drag-to-move
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const moveEvent = (
+    eventId: string,
+    newDate: string,
+    newStart: string | null,
+    newEnd: string | null,
+  ) => {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+    if (ev.date === newDate && ev.start_time === newStart && ev.end_time === newEnd) return;
+    updateMutation.mutate({
+      id: eventId,
+      updates: { date: newDate, start_time: newStart, end_time: newEnd },
+    });
+  };
+
+  const handleDropOnHour = (
+    e: React.DragEvent<HTMLDivElement>,
+    day: Date,
+  ) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/event-id');
+    if (!id) return;
+    const ev = events.find(x => x.id === id);
+    if (!ev) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const totalMin = (offsetY / HOUR_HEIGHT) * 60 + HOUR_START * 60;
+    // Snap to 15 min
+    const snapped = Math.max(HOUR_START * 60, Math.round(totalMin / 15) * 15);
+    const newStartMin = snapped;
+    const wasAllDay = !ev.start_time;
+    const duration = ev.start_time && ev.end_time
+      ? minutesFromTime(ev.end_time) - minutesFromTime(ev.start_time)
+      : 60;
+    const newEndMin = Math.min(HOUR_END * 60, newStartMin + duration);
+    const toHHMM = (m: number) => {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
+    };
+    moveEvent(
+      id,
+      isoDate(day),
+      wasAllDay ? toHHMM(newStartMin) : toHHMM(newStartMin),
+      wasAllDay ? toHHMM(newEndMin) : toHHMM(newEndMin),
+    );
+    setDraggingId(null);
+  };
+
+  const handleDropOnAllDay = (
+    e: React.DragEvent<HTMLDivElement>,
+    day: Date,
+  ) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/event-id');
+    if (!id) return;
+    moveEvent(id, isoDate(day), null, null);
+    setDraggingId(null);
+  };
+
   const deleteSeriesMutation = useMutation({
     mutationFn: ({ recurrence_id, fromDate }: { recurrence_id: string; fromDate: string }) =>
       deleteRecurringEvents(recurrence_id, fromDate),

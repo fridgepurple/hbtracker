@@ -519,8 +519,8 @@ export default function WeekCalendar() {
     const [y, m, d] = form.date.split('-').map(Number);
     const date = new Date(y, m - 1, d);
 
-    const start_time = form.allDay ? null : `${form.start_time}:00`;
-    const end_time = form.allDay ? null : `${form.end_time}:00`;
+    const start_time = `${form.start_time}:00`;
+    const end_time = `${form.end_time}:00`;
 
     if (editing) {
       updateMutation.mutate({

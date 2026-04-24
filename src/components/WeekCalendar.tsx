@@ -228,6 +228,16 @@ export const CATEGORY_OPTIONS: {
 const getCatStyle = (c: EventCategory) =>
   CATEGORY_OPTIONS.find(o => o.value === c) ?? CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
 
+// Diagonal silver/black stripes used to background-render Work events
+const workStripeStyle: React.CSSProperties = {
+  backgroundImage:
+    'repeating-linear-gradient(45deg, hsl(var(--muted-foreground) / 0.22) 0 3px, hsl(var(--muted) / 0.5) 3px 7px)',
+};
+const workStripeSwatchStyle: React.CSSProperties = {
+  backgroundImage:
+    'repeating-linear-gradient(45deg, hsl(var(--muted-foreground) / 0.55) 0 2px, hsl(var(--muted) / 0.7) 2px 4px)',
+};
+
 // ─── Date helpers ───────────────────────────────────────────────────
 const isoDate = (d: Date) => {
   const y = d.getFullYear();

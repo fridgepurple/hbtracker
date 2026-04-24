@@ -100,10 +100,11 @@ export const CATEGORY_OPTIONS: {
     value: 'work',
     label: 'Work',
     icon: Briefcase,
-    swatch: 'bg-indigo-500',
-    bar: 'bg-indigo-500/15 dark:bg-indigo-500/25',
-    border: 'border-indigo-500/50',
-    text: 'text-indigo-700 dark:text-indigo-200',
+    // Striped silver/black pattern — kept low-key so a dedicated work calendar elsewhere stays primary.
+    swatch: 'bg-muted-foreground/40',
+    bar: 'bg-muted/40 dark:bg-muted/30',
+    border: 'border-muted-foreground/40',
+    text: 'text-muted-foreground',
   },
   {
     value: 'errands',
@@ -227,6 +228,16 @@ export const CATEGORY_OPTIONS: {
 const getCatStyle = (c: EventCategory) =>
   CATEGORY_OPTIONS.find(o => o.value === c) ?? CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
 
+// Diagonal silver/black stripes used to background-render Work events
+const workStripeStyle: React.CSSProperties = {
+  backgroundImage:
+    'repeating-linear-gradient(45deg, hsl(var(--muted-foreground) / 0.22) 0 3px, hsl(var(--muted) / 0.5) 3px 7px)',
+};
+const workStripeSwatchStyle: React.CSSProperties = {
+  backgroundImage:
+    'repeating-linear-gradient(45deg, hsl(var(--muted-foreground) / 0.55) 0 2px, hsl(var(--muted) / 0.7) 2px 4px)',
+};
+
 // ─── Date helpers ───────────────────────────────────────────────────
 const isoDate = (d: Date) => {
   const y = d.getFullYear();
@@ -282,7 +293,10 @@ function EventHoverPopup({ event }: { event: CalendarEvent }) {
     <HoverCardContent side="top" align="start" className="w-72 p-3">
       <div className="space-y-2">
         <div className="flex items-start gap-2">
-          <span className={cn('mt-0.5 h-2.5 w-2.5 rounded-full shrink-0', cs.swatch)} />
+          <span
+            className={cn('mt-0.5 h-2.5 w-2.5 rounded-full shrink-0', cs.swatch)}
+            style={event.category === 'work' ? workStripeSwatchStyle : undefined}
+          />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm leading-snug">{event.title}</p>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -596,20 +610,28 @@ export default function WeekCalendar() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm font-semibold">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div className="leading-tight">
           {view === 'week' ? (
             <>
-              {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{' '}
-              –{' '}
-              {weekEnd.toLocaleDateString(undefined, {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              <div className="text-2xl font-bold tracking-tight">
+                {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                <span className="text-muted-foreground mx-1.5 font-normal">–</span>
+                {weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-0.5">
+                {weekEnd.toLocaleDateString(undefined, { year: 'numeric' })}
+              </div>
             </>
           ) : (
-            anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+            <>
+              <div className="text-2xl font-bold tracking-tight">
+                {anchor.toLocaleDateString(undefined, { month: 'long' })}
+              </div>
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-0.5">
+                {anchor.toLocaleDateString(undefined, { year: 'numeric' })}
+              </div>
+            </>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -686,7 +708,10 @@ export default function WeekCalendar() {
                     active ? 'bg-accent' : 'opacity-50 hover:opacity-80',
                   )}
                 >
-                  <span className={cn('h-2.5 w-2.5 rounded-full', c.swatch)} />
+                  <span
+                    className={cn('h-2.5 w-2.5 rounded-full', c.swatch)}
+                    style={c.value === 'work' ? workStripeSwatchStyle : undefined}
+                  />
                   <c.icon className="h-3.5 w-3.5" />
                   <span className="flex-1 text-left">{c.label}</span>
                 </button>
@@ -804,7 +829,11 @@ export default function WeekCalendar() {
                                     cs.text,
                                     draggingId === e.id && 'opacity-50',
                                   )}
-                                  style={{ top: Math.max(0, top), height }}
+                                  style={{
+                                    top: Math.max(0, top),
+                                    height,
+                                    ...(e.category === 'work' ? workStripeStyle : {}),
+                                  }}
                                 >
                                   <div className="font-medium truncate">{e.title}</div>
                                   {!isUntimed && (
@@ -892,8 +921,12 @@ export default function WeekCalendar() {
                                       cs.text,
                                       draggingId === e.id && 'opacity-50',
                                     )}
+                                    style={e.category === 'work' ? workStripeStyle : undefined}
                                   >
-                                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cs.swatch)} />
+                                    <span
+                                      className={cn('h-1.5 w-1.5 rounded-full shrink-0', cs.swatch)}
+                                      style={e.category === 'work' ? workStripeSwatchStyle : undefined}
+                                    />
                                     {e.start_time && (
                                       <span className="opacity-70 shrink-0">{fmtTime(e.start_time)}</span>
                                     )}
@@ -958,7 +991,10 @@ export default function WeekCalendar() {
                     {CATEGORY_OPTIONS.map(c => (
                       <SelectItem key={c.value} value={c.value}>
                         <span className="flex items-center gap-2">
-                          <span className={cn('h-2 w-2 rounded-full', c.swatch)} />
+                          <span
+                            className={cn('h-2 w-2 rounded-full', c.swatch)}
+                            style={c.value === 'work' ? workStripeSwatchStyle : undefined}
+                          />
                           {c.label}
                         </span>
                       </SelectItem>

@@ -314,6 +314,7 @@ function EventHoverPopup({ event }: { event: CalendarEvent }) {
 // ─── WeekCalendar ───────────────────────────────────────────────────
 export default function WeekCalendar() {
   const queryClient = useQueryClient();
+  const [view, setView] = useState<'week' | 'month'>('week');
   const [anchor, setAnchor] = useState<Date>(new Date());
   const weekStart = useMemo(() => startOfWeekMonday(anchor), [anchor]);
   const weekDays = useMemo(
@@ -322,13 +323,26 @@ export default function WeekCalendar() {
   );
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
 
+  // Month view: build a 6-week grid that contains the anchor's month
+  const monthInfo = useMemo(() => {
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    const gridStart = startOfWeekMonday(first);
+    const gridEnd = addDays(gridStart, 41); // 6 weeks
+    const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+    return { first, last, gridStart, gridEnd, days };
+  }, [anchor]);
+
+  const rangeStart = view === 'week' ? weekStart : monthInfo.gridStart;
+  const rangeEnd = view === 'week' ? weekEnd : monthInfo.gridEnd;
+
   const [activeCats, setActiveCats] = useState<Set<EventCategory>>(
     new Set(CATEGORY_OPTIONS.map(c => c.value)),
   );
 
   const { data: events = [] } = useQuery({
-    queryKey: ['events', isoDate(weekStart), isoDate(weekEnd)],
-    queryFn: () => fetchEventsInRange(weekStart, weekEnd),
+    queryKey: ['events', isoDate(rangeStart), isoDate(rangeEnd)],
+    queryFn: () => fetchEventsInRange(rangeStart, rangeEnd),
   });
 
   const visibleEvents = useMemo(
@@ -347,8 +361,21 @@ export default function WeekCalendar() {
     return map;
   }, [visibleEvents, weekDays]);
 
-  // ─── View mode ────────────────────────────────────────────────────
-  const [view, setView] = useState<'week' | 'month'>('week');
+  // For month view: group by ISO date string
+  const eventsByIsoDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    visibleEvents.forEach(e => {
+      const arr = map.get(e.date) ?? [];
+      arr.push(e);
+      map.set(e.date, arr);
+    });
+    // Sort each day's events by start_time (untimed first)
+    map.forEach(arr =>
+      arr.sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
+    );
+    return map;
+  }, [visibleEvents]);
+
 
   // ─── Dialog state ─────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
